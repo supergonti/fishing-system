@@ -1,0 +1,87 @@
+name: Rebuild master & verify golden
+
+# W3-2 §4.3 / W3-3 §9.4 準拠
+# 週次でマスター整合性（ゴールデン比較）を検査する。
+# W5-1 でゴールデンが採取されるまで失敗するのは想定内。
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'   # 月曜 00:00 UTC = 09:00 JST
+  workflow_dispatch:       # 手動実行可
+
+concurrency:
+  group: rebuild-master-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies (if requirements.txt exists)
+        run: |
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            echo "No requirements.txt; standard library only."
+          fi
+
+      # -----------------------------------------------------------------
+      # Step A: 新アーキから互換出力を生成
+      #   engines.emit_all は fishing_data / muroto_v1 / integrated の3本を一括生成
+      #   --out-dir .ci_out に書き、data/ 直下のゴールデンと比較（非破壊）
+      # -----------------------------------------------------------------
+      - name: Generate compat outputs (emit_all)
+        run: |
+          mkdir -p .ci_out
+          python -m engines.emit_all \
+            --master data/master_catch.csv \
+            --c3     data/fishing_condition_db.csv \
+            --c4     data/muroto_offshore_current_all.csv \
+            --out-dir .ci_out
+
+      # -----------------------------------------------------------------
+      # Step B: ゴールデン比較テスト
+      #   tests/golden_match_test.py は W4-1 で実装済み（4ケース）
+      #   ゴールデンが未採取（W5-1 未完了）の場合はここで失敗する想定
+      # -----------------------------------------------------------------
+      - name: Golden byte-match comparison
+        run: |
+          python -m tests.golden_match_test
+
+      # -----------------------------------------------------------------
+      # Step C: 破損検査（W4-3 の validate_all.py を再利用）
+      # -----------------------------------------------------------------
+      - name: Validate all data files
+        run: |
+          if [ -f scripts/validate_all.py ]; then
+            python scripts/validate_all.py \
+              --condition-csv  data/fishing_condition_db.csv \
+              --condition-json data/fishing_condition_db.json \
+              --current-csv    data/muroto_offshore_current_all.csv \
+              --forecast-json  data/forecast_data.json
+          else
+            echo "scripts/validate_all.py not yet wired; skipping."
+          fi
+
+      # -----------------------------------------------------------------
+      # 失敗時: 生成物をアーティファクトとして残し、ローカル再現を助ける
+      # -----------------------------------------------------------------
+      - name: Upload generated outputs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emit_all-output-${{ github.run_id }}
+          path: .ci_out/
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,18 @@
+# 統合リポ requirements（W5-2 統合リポ構築で集約）
+#
+# 元:
+#   - 海流リポ (室戸沖の海流データの収集とデータ化/requirements.txt)
+#   - 解析v2, 出船可否, 室戸沖釣果は標準ライブラリのみで動作
+#
+# 運用: python3.11 + pip install -r requirements.txt
+
+# === 海流データ取得（main.py / downloader.py） ===
+copernicusmarine>=2.0.0
+xarray>=2024.1.0
+netCDF4>=1.6.0
+h5py>=3.10.0
+
+# === 共通（build_database.py / analyze_engine.py / validate_all.py 等） ===
+pandas>=2.0.0
+numpy>=1.24.0
+requests>=2.31.0

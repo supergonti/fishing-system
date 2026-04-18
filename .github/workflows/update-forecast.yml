@@ -1,0 +1,26 @@
+name: 出船予報データ更新
+
+on:
+  schedule:
+    # 日本時間 6・9・12・15・18時に実行（UTC換算）
+    - cron: '0 21,0,3,6,9 * * *'
+  workflow_dispatch:  # GitHub画面から手動実行も可能
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 海況・気象データ取得
+        run: python3 scripts/fetch_forecast.py
+
+      - name: forecast_data.json をコミット・プッシュ
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/forecast_data.json
+          git diff --staged --quiet && echo "変更なし" || git commit -m "🌊 予報データ更新 $(date -u +'%Y-%m-%d %H:%M UTC')" && git push

@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>釣り条件分析データベース V6.0</title>
+<style>
+:root{
+  --bg:#f4f7f9;--surface:#fff;--primary:#1a3a5c;--primary2:#1a5276;
+  --accent:#2e86c1;--gold:#b8963e;--green:#1e8449;--red:#922b21;
+  --purple:#6c3483;--border:#d5dbdb;--text:#2c3e50;--text2:#555;--text3:#888;
+  --ok-bg:#eafaf1;--ok-bd:#a9dfbf;--ok-c:#1e8449;
+  --warn-bg:#fef9e7;--warn-bd:#f9e79f;--warn-c:#9a7d0a;
+  --err-bg:#fdedec;--err-bd:#f1948a;--err-c:#922b21;
+  --badge-bg:#d5e8f3;--badge-bd:#aed6f1;
+  --r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);font-family:'Yu Gothic UI','Meiryo UI','Hiragino Sans',sans-serif;color:var(--text);min-height:100vh;}
+.app-header{background:linear-gradient(135deg,var(--primary),var(--primary2));padding:16px 24px;color:#fff;display:flex;align-items:center;gap:14px;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.app-header .icon{font-size:2rem;}
+.app-header h1{font-size:1.4rem;margin-bottom:2px;}
+.app-header p{font-size:.8rem;color:#85c1e9;}
+.tab-nav{display:flex;background:var(--primary);border-bottom:3px solid var(--accent);}
+.tab-btn{padding:12px 22px;background:none;border:none;color:rgba(255,255,255,0.5);font-family:inherit;font-size:13px;cursor:pointer;transition:all .2s;border-bottom:3px solid transparent;margin-bottom:-3px;letter-spacing:.5px;}
+.tab-btn.active{color:#fff;border-bottom-color:#85c1e9;background:rgba(255,255,255,.08);}
+.tab-btn:hover:not(.active){color:rgba(255,255,255,.75);}
+.tab-content{display:none;padding:20px 24px;}.tab-content.active{display:block;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 20px;margin-bottom:16px;}
+.card-title{font-size:.8rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border:0;border-radius:8px;font:500 .9rem inherit;color:#fff;cursor:pointer;transition:opacity .15s,transform .1s;box-shadow:0 2px 4px rgba(0,0,0,.12);}
+.btn:hover:not(:disabled){opacity:.88;transform:translateY(-1px);}
+.btn:active:not(:disabled){transform:translateY(0);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-main{background:var(--primary2);font-size:1rem;font-weight:700;padding:12px 24px;}
+.btn-update{background:var(--accent);}
+.btn-csv{background:var(--green);}
+.btn-save{background:#784212;}
+.btn-load{background:#6d4c41;}
+.btn-danger{background:var(--red);}
+.btn-purple{background:var(--purple);}
+.btn-add{background:var(--green);}
+.btn-edit{background:var(--accent);}
+.btn-del{background:var(--red);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+.progress-wrap{margin-bottom:14px;display:flex;align-items:center;gap:12px;}
+.progress-track{flex:1;height:20px;background:var(--border);border-radius:10px;overflow:hidden;}
+.progress-fill{height:100%;width:0;background:linear-gradient(90deg,var(--primary2),var(--accent));border-radius:10px;transition:width .4s;}
+.progress-label{font-size:.82rem;color:var(--text2);min-width:180px;}
+.log-area{background:#1c2833;border-radius:8px;padding:14px 16px;height:260px;overflow-y:auto;font:.82rem/1.6 Consolas,'Courier New',monospace;margin-bottom:8px;}
+.log-area::-webkit-scrollbar{width:5px;}.log-area::-webkit-scrollbar-thumb{background:#34495e;border-radius:3px;}
+.ll{color:#a9cce3;}.ll.ok{color:#58d68d;}.ll.warn{color:#f0b27a;}.ll.err{color:#ec7063;}.ll.head{color:#f9e79f;}
+.log-clear{font-size:.75rem;padding:2px 10px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;color:#555;}
+.log-clear:hover{background:var(--bg);}
+.spots-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:12px;}
+.spot-chip{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;font-size:.82rem;border:1px solid var(--badge-bd);background:var(--badge-bg);color:var(--primary);transition:all .3s;}
+.spot-chip.fetching{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn-c);}
+.spot-chip.done{background:var(--ok-bg);border-color:var(--ok-bd);color:var(--ok-c);}
+.spot-chip.error{background:var(--err-bg);border-color:var(--err-bd);color:var(--err-c);}
+.spot-chip.disabled{background:#f4f4f4;border-color:#ddd;color:#aaa;}
+.spot-chip .si{font-size:1rem;}
+.status-bar{background:var(--badge-bg);padding:8px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--badge-bd);flex-wrap:wrap;gap:8px;}
+.status-item{font-size:.85rem;color:var(--primary);}
+.status-badge{font-weight:700;color:var(--primary);padding:2px 10px;background:#fff;border-radius:12px;border:1px solid var(--badge-bd);font-size:.85rem;}
+.status-badge.running{color:var(--err-c);border-color:var(--err-bd);background:var(--err-bg);}
+.status-badge.done{color:var(--ok-c);border-color:var(--ok-bd);background:var(--ok-bg);}
+.data-table{width:100%;border-collapse:collapse;font-size:.88rem;margin-bottom:8px;}
+.data-table th{padding:9px 12px;text-align:left;background:var(--primary);color:#fff;font-size:.8rem;letter-spacing:.5px;white-space:nowrap;}
+.data-table td{padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap;}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:var(--badge-bg);}
+.total-row td{background:var(--badge-bg);font-weight:700;}
+.st-table{width:100%;border-collapse:collapse;font-size:.87rem;}
+.st-table th{padding:9px 10px;text-align:left;background:var(--primary);color:#fff;font-size:.78rem;letter-spacing:.5px;white-space:nowrap;}
+.st-table td{padding:8px 10px;border-bottom:1px solid var(--border);}
+.st-table tr:last-child td{border-bottom:none;}
+.st-table tr:hover td{background:var(--badge-bg);}
+.toggle-btn{background:none;border:1px solid #ccc;border-radius:4px;padding:3px 10px;font-size:.78rem;cursor:pointer;transition:all .15s;}
+.toggle-btn.on{background:var(--ok-bg);border-color:var(--ok-bd);color:var(--ok-c);}
+.toggle-btn.off{background:var(--err-bg);border-color:var(--err-bd);color:var(--err-c);}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;justify-content:center;align-items:center;}
+.modal-overlay.show{display:flex;}
+.modal{background:#fff;border-radius:12px;padding:28px;min-width:360px;max-width:500px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.25);}
+.modal h2{font-size:1.1rem;color:var(--primary);margin-bottom:6px;}
+.modal .sub{font-size:.82rem;color:#777;margin-bottom:16px;}
+.modal-close{margin-top:16px;width:100%;padding:10px;background:var(--text3);color:#fff;border:0;border-radius:8px;font:.9rem inherit;cursor:pointer;}
+.modal-close:hover{background:#636e72;}
+.form-group{margin-bottom:12px;}
+.form-label{display:block;font-size:.8rem;color:var(--text3);margin-bottom:4px;font-weight:600;}
+.form-input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font:inherit;font-size:.9rem;color:var(--text);outline:none;transition:border-color .2s;}
+.form-input:focus{border-color:var(--accent);}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+#countdown-box{background:var(--warn-bg);border:1px solid var(--warn-bd);border-radius:8px;padding:10px 16px;margin-bottom:14px;font-size:.9rem;color:var(--warn-c);display:none;}
+#countdown-box.show{display:block;}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:16px;}
+.summary-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;}
+.summary-card .sc-label{font-size:.75rem;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.summary-card .sc-val{font-size:1.6rem;font-weight:700;color:var(--accent);letter-spacing:1px;}
+.summary-card .sc-sub{font-size:.78rem;color:var(--text3);margin-top:2px;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(18px);background:var(--primary);color:#fff;padding:10px 22px;border-radius:20px;font-size:.88rem;font-weight:700;opacity:0;transition:all .28s;z-index:999;pointer-events:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.25);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div class="app-header">
+  <span class="icon">🌊</span>
+  <div>
+    <h1>釣り条件分析データベース V6.0</h1>
+    <p>天気・水温・潮汐・月齢を一括収集（6:00-9:00 集計）／ Open-Meteo API（無料・APIキー不要）</p>
+  </div>
+</div>
+<div class="status-bar">
+  <div style="display:flex;gap:20px;flex-wrap:wrap;">
+    <span class="status-item" id="db-status">DB: 初期化中…</span>
+    <span class="status-item" id="weather-count">天気: —件</span>
+    <span class="status-item" id="water-count">水温: —件</span>
+    <span class="status-item" id="tide-count">潮汐: —件</span>
+    <span class="status-item" id="moon-count">月齢: —件</span>
+    <span class="status-item" id="save-dir-status" style="cursor:pointer;text-decoration:underline dotted;" onclick="selectSaveDir()" title="クリックで保存先を変更">💾 保存先: 未設定</span>
+  </div>
+  <span class="status-badge" id="run-badge">待機中</span>
+</div>
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('update')">🔄 データ更新</button>
+  <button class="tab-btn" onclick="switchTab('csv')">🧪 テスト用エクスポート</button>
+  <button class="tab-btn" onclick="switchTab('stations')">📍 地点管理</button>
+  <button class="tab-btn" onclick="switchTab('summary')">📊 集計確認</button>
+</div>
+<div class="tab-content active" id="tab-update">
+  <div class="card">
+    <div class="card-title">データ更新（6:00-9:00 時間帯集計）</div>
+    <div class="btn-row">
+      <button class="btn btn-main" id="btn-all" onclick="runAll()">🔄 全データ一括更新</button>
+      <button class="btn btn-update" onclick="runWeather()">🌤 天気のみ</button>
+      <button class="btn btn-update" onclick="runWater()">🌊 水温のみ</button>
+      <button class="btn btn-update" onclick="runTide()">🌙 潮汐・月齢</button>
+    </div>
+    <div id="countdown-box"></div>
+    <div class="progress-wrap">
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-label" id="progress-label">— 待機中 —</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">観測地点の状況</div>
+    <div class="spots-grid" id="spots-grid"></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div class="card-title" style="margin-bottom:0;">処理ログ</div>
+      <button class="log-clear" onclick="clearLog()">クリア</button>
+    </div>
+    <div class="log-area" id="log-area"></div>
+  </div>
+</div>
+<div class="tab-content" id="tab-csv">
+  <div class="card" style="background:#fef9e7;border:2px solid #f9e79f;">
+    <div class="card-title" style="color:#9a7d0a;">⚠️ このタブはテスト・検証専用です</div>
+    <p style="font-size:.85rem;color:#7d6608;margin-bottom:6px;font-weight:600;">本番の環境データCSVは GitHub Actions が毎週月曜9:00 JSTに自動生成します。</p>
+    <p style="font-size:.82rem;color:#9a7d0a;">ここからエクスポートされるファイルはタイムスタンプ付きの別名で保存されるため、本番データと競合しません。<br>
+    V6.1で自動保存機能は完全廃止予定です。</p>
+  </div>
+  <div class="card">
+    <div class="card-title">保存先フォルダ（任意設定）</div>
+    <p style="font-size:.82rem;color:var(--text2);margin-bottom:10px;">テスト用エクスポートの保存先を指定できます。未設定の場合はブラウザのダウンロードフォルダに保存されます。</p>
+    <div class="btn-row">
+      <button class="btn btn-save" onclick="selectSaveDir()">📁 保存先フォルダを選択</button>
+      <span id="save-dir-label" style="font-size:.85rem;color:var(--text2);align-self:center;">未設定（ダウンロードフォルダに保存）</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">🧪 テスト用エクスポート（統合CSV）</div>
+    <p style="font-size:.82rem;color:var(--text2);margin-bottom:12px;">他システムでの検証用にタイムスタンプ付きCSV/JSONをエクスポートします。本番用ではありません。</p>
+    <div class="btn-row">
+      <button class="btn btn-main" onclick="exportIntegratedCSV()">🧪 統合CSVエクスポート</button>
+      <button class="btn btn-save" onclick="exportIntegratedJSON()">💾 JSONエクスポート</button>
+    </div>
+    <p style="font-size:.78rem;color:var(--text3);margin-top:6px;">ファイル名: fishing_condition_db_export_YYYYMMDD_HHMM.csv / .json（タイムスタンプ付き）</p>
+  </div>
+  <div class="card">
+    <div class="card-title">個別CSVダウンロード</div>
+    <div class="btn-row">
+      <button class="btn btn-csv" onclick="exportWeather()">🌤 天気</button>
+      <button class="btn btn-csv" onclick="exportWater()">🌊 水温</button>
+      <button class="btn btn-csv" onclick="exportTide()">🌙 潮汐</button>
+      <button class="btn btn-csv" onclick="exportMoon()">🌕 月齢</button>
+    </div>
+    <button class="btn btn-purple" style="margin-top:6px;" onclick="exportAll()">📦 個別4ファイル一括出力</button>
+  </div>
+  <div class="card">
+    <div class="card-title">復元</div>
+    <div class="btn-row">
+      <button class="btn btn-load" onclick="document.getElementById('restore-input').click()">📂 JSONから復元</button>
+      <input type="file" id="restore-input" accept=".json" style="display:none" onchange="restoreDB(event)">
+    </div>
+    <p style="font-size:.82rem;color:var(--text3);">復元時は既存データが上書きされます。</p>
+  </div>
+</div>
+<div class="tab-content" id="tab-stations">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="card-title" style="margin-bottom:0;">観測地点一覧</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-add" style="padding:8px 14px;font-size:.85rem;" onclick="openStationModal()">＋ 地点を追加</button>
+        <button class="btn btn-save" style="padding:8px 14px;font-size:.85rem;" onclick="exportStationsJSON()">💾 stations.json 出力</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="st-table" id="stations-table">
+        <thead><tr><th>釣り場名</th><th>観測地点</th><th>緯度</th><th>経度</th><th>潮汐コード</th><th>有効</th><th>操作</th></tr></thead>
+        <tbody id="stations-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div class="tab-content" id="tab-summary">
+  <div class="card">
+    <div class="card-title">データ件数サマリー</div>
+    <div class="summary-grid" id="summary-grid"></div>
+    <button class="btn btn-update" style="margin-top:4px;" onclick="refreshSummary()">🔄 集計を更新</button>
+  </div>
+  <div class="card">
+    <div class="card-title">地点別 × データ種別 件数</div>
+    <div style="overflow-x:auto;">
+      <table class="data-table" id="summary-table">
+        <thead><tr><th>釣り場名</th><th>天気</th><th>水温</th><th>潮汐</th></tr></thead>
+        <tbody id="summary-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="modal-overlay" id="station-modal" onclick="closeStationModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2 id="modal-title">地点を追加</h2>
+    <div class="sub">観測地点の情報を入力してください。</div>
+    <input type="hidden" id="modal-edit-id">
+    <div class="form-group">
+      <label class="form-label">ID（英数字・スネークケース）</label>
+      <input class="form-input" id="modal-id" type="text" placeholder="例: muroto">
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">釣り場名</label><input class="form-input" id="modal-spot" type="text" placeholder="例: 室戸岬沖"></div>
+      <div class="form-group"><label class="form-label">観測地点名</label><input class="form-input" id="modal-station" type="text" placeholder="例: 室戸岬"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">緯度</label><input class="form-input" id="modal-lat" type="number" step="0.001" placeholder="例: 33.26"></div>
+      <div class="form-group"><label class="form-label">経度</label><input class="form-input" id="modal-lng" type="number" step="0.001" placeholder="例: 134.18"></div>
+    </div>
+    <div class="form-group"><label class="form-label">潮汐コード</label><input class="form-input" id="modal-tide-code" type="text" placeholder="例: MRTO"></div>
+    <div style="display:flex;gap:10px;margin-top:8px;">
+      <button class="btn btn-add" style="flex:1;" onclick="saveStation()">✓ 保存</button>
+      <button class="modal-close" style="margin-top:0;flex:1;background:var(--text3);" onclick="closeStationModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+<script>
+/* ===== fishing_condition_db V6.0 (2026-04-11) ===== */
+/* V6.0: HTML↔JS ID全修正 + Archive API対応 + チャンク分割 + 429リトライ + 差分更新改善 */
+const DB_NAME='fishing_condition_db';
+const DB_VER=1;
+const STORES=['stations','weather','water_temp','tide','moon_age'];
+const API_DELAY=1200;
+const TARGET_HOURS=[6,7,8];
+const DEFAULT_START_DATE='2022-01-01';
+const CHUNK_DAYS=180;  /* 1回のAPIリクエストで取得する最大日数 */
+const MAX_RETRIES=5;   /* 429エラー時の最大リトライ回数 */
+
+/* ---------- Date helpers (V5.1 JST fix) ---------- */
+function localDateStr(d){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function today(){return localDateStr(new Date());}
+function addDays(dateStr,n){
+  const d=new Date(dateStr+'T12:00:00');
+  d.setDate(d.getDate()+n);
+  return localDateStr(d);
+}
+function formatDate(d){return localDateStr(d);}
+function exportTimestamp(){
+  const now=new Date();
+  return `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+}
+function daysBetween(from,to){
+  const a=new Date(from+'T12:00:00'),b=new Date(to+'T12:00:00');
+  return Math.round((b-a)/(86400000));
+}
+
+/* ---------- Date range chunking ---------- */
+function chunkDateRange(fromDate,toDate,chunkSize){
+  const chunks=[];
+  let cur=fromDate;
+  while(cur<=toDate){
+    const end=addDays(cur,chunkSize-1);
+    chunks.push({from:cur,to:end>toDate?toDate:end});
+    cur=addDays(end>toDate?toDate:end,1);
+  }
+  return chunks;
+}
+
+/* ---------- API endpoint routing (Archive / Forecast を境界で分割) ---------- */
+/* Open-Meteo Archive API: 5日前までの過去、Forecast API: 直近〜16日先。
+   範囲が両方にまたがる場合は、両方を別々に呼び出して結合する必要がある
+   （toDate だけで分岐すると、古い日が forecast API で取得できず空になる）。 */
+function weatherArchiveUrl(lat,lng,fromDate,toDate){
+  return `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}`
+    +`&hourly=temperature_2m,wind_speed_10m,wind_direction_10m,precipitation,weather_code`
+    +`&timezone=Asia%2FTokyo&start_date=${fromDate}&end_date=${toDate}`;
+}
+function weatherForecastUrl(lat,lng,fromDate,toDate){
+  return `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}`
+    +`&hourly=temperature_2m,wind_speed_10m,wind_direction_10m,precipitation,weather_code`
+    +`&timezone=Asia%2FTokyo&start_date=${fromDate}&end_date=${toDate}&past_days=0`;
+}
+function marineApiUrl(lat,lng,fromDate,toDate,params){
+  return `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}`
+    +`&${params}&timezone=Asia%2FTokyo&start_date=${fromDate}&end_date=${toDate}`;
+}
+
+/* ---------- Fetch with retry + countdown (429 handling) ---------- */
+async function fetchWithRetry(url,retries=MAX_RETRIES){
+  for(let attempt=0;attempt<=retries;attempt++){
+    const res=await fetch(url);
+    if(res.ok)return res;
+    if(res.status===429){
+      /* Rate limited — wait with countdown */
+      const retryAfter=parseInt(res.headers.get('Retry-After'))||60;
+      const waitSec=Math.min(retryAfter,120);
+      log(`⚠ API制限 (429) — ${waitSec}秒待機後リトライ (${attempt+1}/${retries})`,'warn');
+      const cdBox=document.getElementById('countdown-box');
+      for(let s=waitSec;s>0;s--){
+        if(cdBox){cdBox.textContent=`API制限中… あと ${s} 秒で再開`;cdBox.classList.add('show');}
+        await new Promise(r=>setTimeout(r,1000));
+      }
+      if(cdBox)cdBox.classList.remove('show');
+      continue;
+    }
+    throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+  throw new Error(`API制限が解除されません (${retries}回リトライ失敗)`);
+}
+
+/* ---------- IndexedDB ---------- */
+let db=null;
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(DB_NAME,DB_VER);
+    req.onupgradeneeded=e=>{
+      const d=e.target.result;
+      for(const s of STORES){
+        if(!d.objectStoreNames.contains(s)){
+          if(s==='stations') d.createObjectStore(s,{keyPath:'id',autoIncrement:true});
+          else d.createObjectStore(s,{keyPath:['station_id','date']});
+        }
+      }
+    };
+    req.onsuccess=e=>{db=e.target.result;resolve(db);};
+    req.onerror=e=>reject(e.target.error);
+  });
+}
+function tx(store,mode='readonly'){
+  const t=db.transaction(store,mode);
+  return t.objectStore(store);
+}
+function reqP(r){return new Promise((ok,ng)=>{r.onsuccess=()=>ok(r.result);r.onerror=()=>ng(r.error);});}
+function txAll(store,mode='readonly'){
+  return new Promise((ok,ng)=>{
+    const t=db.transaction(store,mode);
+    const s=t.objectStore(store);
+    const r=s.getAll();
+    r.onsuccess=()=>ok(r.result);
+    r.onerror=()=>ng(r.error);
+  });
+}
+function putRecord(store,rec){
+  return new Promise((ok,ng)=>{
+    const t=db.transaction(store,'readwrite');
+    const s=t.objectStore(store);
+    const r=s.put(rec);
+    r.onsuccess=()=>ok(r.result);
+    r.onerror=()=>ng(r.error);
+  });
+}
+function deleteRecord(store,key){
+  return new Promise((ok,ng)=>{
+    const t=db.transaction(store,'readwrite');
+    const s=t.objectStore(store);
+    const r=s.delete(key);
+    r.onsuccess=()=>ok();
+    r.onerror=()=>ng(r.error);
+  });
+}
+function clearStore(store){
+  return new Promise((ok,ng)=>{
+    const t=db.transaction(store,'readwrite');
+    const s=t.objectStore(store);
+    const r=s.clear();
+    r.onsuccess=()=>ok();
+    r.onerror=()=>ng(r.error);
+  });
+}
+
+/* ---------- Default stations ---------- */
+const DEFAULT_STATIONS=[
+  {name:'室戸',lat:33.29,lng:134.18,pref:'高知県'},
+  {name:'高知',lat:33.56,lng:133.54,pref:'高知県'},
+  {name:'足摺',lat:32.72,lng:132.72,pref:'高知県'},
+  {name:'宇和島',lat:33.22,lng:132.56,pref:'愛媛県'},
+  {name:'松山',lat:33.84,lng:132.77,pref:'愛媛県'},
+  {name:'来島',lat:34.12,lng:132.99,pref:'愛媛県'},
+  {name:'高松',lat:34.35,lng:134.05,pref:'香川県'},
+  {name:'阿南',lat:33.92,lng:134.66,pref:'徳島県'}
+];
+
+async function initStations(){
+  const existing=await txAll('stations');
+  if(existing.length===0){
+    for(const st of DEFAULT_STATIONS){
+      await putRecord('stations',st);
+    }
+  }
+}
+
+/* ---------- Hourly aggregation helpers ---------- */
+function groupHourlyByDate(timeArr,dataKeys,dataArrays){
+  const byDate={};
+  for(let i=0;i<timeArr.length;i++){
+    const t=timeArr[i];
+    const dateStr=t.substring(0,10);
+    const hour=parseInt(t.substring(11,13));
+    if(!TARGET_HOURS.includes(hour))continue;
+    if(!byDate[dateStr])byDate[dateStr]=[];
+    const entry={hour};
+    for(const key of dataKeys){entry[key]=dataArrays[key][i];}
+    byDate[dateStr].push(entry);
+  }
+  return byDate;
+}
+function avg(arr){return arr.length?Math.round(arr.reduce((a,b)=>a+b,0)/arr.length*10)/10:null;}
+function maxVal(arr){return arr.length?Math.round(Math.max(...arr)*10)/10:null;}
+function minVal(arr){return arr.length?Math.round(Math.min(...arr)*10)/10:null;}
+function sumVal(arr){return arr.length?Math.round(arr.reduce((a,b)=>a+b,0)*10)/10:null;}
+
+/* ---------- Weather code description ---------- */
+function weatherDesc(code){
+  const map={0:'快晴',1:'晴れ',2:'一部曇り',3:'曇り',45:'霧',48:'着氷霧',
+    51:'弱い霧雨',53:'霧雨',55:'強い霧雨',56:'着氷霧雨(弱)',57:'着氷霧雨(強)',
+    61:'弱い雨',63:'雨',65:'強い雨',66:'着氷雨(弱)',67:'着氷雨(強)',
+    71:'弱い雪',73:'雪',75:'強い雪',77:'霧雪',
+    80:'弱いにわか雨',81:'にわか雨',82:'激しいにわか雨',
+    85:'弱いにわか雪',86:'強いにわか雪',
+    95:'雷雨',96:'雷雨(雹弱)',99:'雷雨(雹強)'};
+  return map[code]||`code${code}`;
+}
+
+/* ---------- Wind direction ---------- */
+function windDirStr(deg){
+  if(deg==null)return '';
+  const dirs=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg/22.5)%16];
+}
+
+/* ---------- Moon age ---------- */
+function calcMoonAge(dateStr){
+  const d=new Date(dateStr+'T12:00:00');
+  const y=d.getFullYear(),m=d.getMonth()+1,day=d.getDate();
+  let a=y,b=m;
+  if(b<=2){a--;b+=12;}
+  const A=Math.floor(a/100);
+  const B=2-A+Math.floor(A/4);
+  const JD=Math.floor(365.25*(a+4716))+Math.floor(30.6001*(b+1))+day+B-1524.5;
+  const newMoonJD=2451550.1;
+  const synodicMonth=29.530588853;
+  let age=(JD-newMoonJD)%synodicMonth;
+  if(age<0)age+=synodicMonth;
+  return Math.round(age*10)/10;
+}
+function moonPhaseName(age){
+  if(age<1.85)return '新月';
+  if(age<5.55)return '三日月';
+  if(age<9.25)return '上弦';
+  if(age<12.95)return '十日夜';
+  if(age<16.65)return '満月';
+  if(age<20.35)return '十六夜';
+  if(age<24.05)return '下弦';
+  if(age<27.75)return '二十六夜';
+  return '晦日';
+}
+
+/* ---------- Tide type ---------- */
+function tideType(moonAge){
+  if(moonAge<=2||moonAge>=28)return '大潮';
+  if(moonAge<=5)return '中潮';
+  if(moonAge<=8)return '小潮';
+  if(moonAge<=10)return '長潮';
+  if(moonAge<=12)return '若潮';
+  if(moonAge<=16)return '大潮';
+  if(moonAge<=19)return '中潮';
+  if(moonAge<=22)return '小潮';
+  if(moonAge<=24)return '長潮';
+  if(moonAge<=26)return '若潮';
+  return '中潮';
+}
+
+/* ---------- 天気API レスポンスを日別集計して返すヘルパ ---------- */
+function parseWeatherJson(json){
+  const h=json.hourly;
+  if(!h||!h.time)return {};
+  const dataKeys=['temperature_2m','wind_speed_10m','wind_direction_10m','precipitation','weather_code'];
+  const dataArrays={};
+  for(const k of dataKeys){dataArrays[k]=h[k]||[];}
+  const byDate=groupHourlyByDate(h.time,dataKeys,dataArrays);
+  const result={};
+  for(const [dateStr,entries] of Object.entries(byDate)){
+    const temps=entries.map(e=>e.temperature_2m).filter(v=>v!=null);
+    const precips=entries.map(e=>e.precipitation).filter(v=>v!=null);
+    const codes=entries.map(e=>e.weather_code).filter(v=>v!=null);
+    let maxWind=null,maxWindDir=null;
+    for(const e of entries){
+      if(e.wind_speed_10m!=null&&(maxWind==null||e.wind_speed_10m>maxWind)){
+        maxWind=e.wind_speed_10m;
+        maxWindDir=e.wind_direction_10m;
+      }
+    }
+    result[dateStr]={
+      気温_平均:avg(temps),
+      気温_最高:maxVal(temps),
+      気温_最低:minVal(temps),
+      風速_最大:maxWind!=null?Math.round(maxWind*10)/10:null,
+      風向:maxWindDir!=null?windDirStr(maxWindDir):'',
+      降水量:sumVal(precips),
+      天気コード:codes.length?Math.max(...codes):null,
+      天気:codes.length?weatherDesc(Math.max(...codes)):''
+    };
+  }
+  return result;
+}
+
+/* ---------- API fetch: Weather (archive / forecast を境界で分割して両方取る) ---------- */
+async function fetchWeatherForStation(station,fromDate,toDate){
+  const fiveDaysAgo=addDays(today(),-5);
+  const result={};
+
+  /* ① アーカイブ区間 */
+  if(fromDate<=fiveDaysAgo){
+    const arcEnd=toDate<=fiveDaysAgo?toDate:fiveDaysAgo;
+    const url=weatherArchiveUrl(station.lat,station.lng,fromDate,arcEnd);
+    try{
+      const res=await fetchWithRetry(url);
+      const json=await res.json();
+      Object.assign(result,parseWeatherJson(json));
+    }catch(e){
+      console.warn(`archive 天気取得失敗 (${fromDate}〜${arcEnd}):`,e.message);
+    }
+  }
+
+  /* ② フォアキャスト区間 */
+  if(toDate>fiveDaysAgo){
+    const fcStart=fromDate>fiveDaysAgo?fromDate:addDays(fiveDaysAgo,1);
+    const url=weatherForecastUrl(station.lat,station.lng,fcStart,toDate);
+    try{
+      const res=await fetchWithRetry(url);
+      const json=await res.json();
+      Object.assign(result,parseWeatherJson(json));
+    }catch(e){
+      console.warn(`forecast 天気取得失敗 (${fcStart}〜${toDate}):`,e.message);
+    }
+  }
+
+  return result;
+}
+
+/* ---------- API fetch: Marine (hourly → aggregate 6-9 JST, with retry) ---------- */
+async function fetchMarineForStation(station,fromDate,toDate){
+  const url=marineApiUrl(station.lat,station.lng,fromDate,toDate,
+    'hourly=wave_height,wave_direction,wave_period');
+  const res=await fetchWithRetry(url);
+  const json=await res.json();
+  const h=json.hourly;
+  if(!h||!h.time)return {};
+  const dataKeys=['wave_height','wave_direction','wave_period'];
+  const dataArrays={};
+  for(const k of dataKeys){dataArrays[k]=h[k]||[];}
+  const byDate=groupHourlyByDate(h.time,dataKeys,dataArrays);
+  const result={};
+  for(const [dateStr,entries] of Object.entries(byDate)){
+    const heights=entries.map(e=>e.wave_height).filter(v=>v!=null);
+    const dirs=entries.map(e=>e.wave_direction).filter(v=>v!=null);
+    const periods=entries.map(e=>e.wave_period).filter(v=>v!=null);
+    result[dateStr]={
+      最大波高:maxVal(heights),
+      波向:dirs.length?windDirStr(avg(dirs)):'',
+      波周期:avg(periods)
+    };
+  }
+  return result;
+}
+
+/* ---------- API fetch: Water temp (hourly with daily fallback, with retry) ---------- */
+async function fetchWaterTempForStation(station,fromDate,toDate){
+  try{
+    const url=marineApiUrl(station.lat,station.lng,fromDate,toDate,
+      'hourly=sea_surface_temperature');
+    const res=await fetchWithRetry(url);
+    const json=await res.json();
+    const h=json.hourly;
+    if(h&&h.time&&h.sea_surface_temperature){
+      const dataKeys=['sea_surface_temperature'];
+      const dataArrays={sea_surface_temperature:h.sea_surface_temperature};
+      const byDate=groupHourlyByDate(h.time,dataKeys,dataArrays);
+      const result={};
+      for(const [dateStr,entries] of Object.entries(byDate)){
+        const temps=entries.map(e=>e.sea_surface_temperature).filter(v=>v!=null);
+        if(temps.length)result[dateStr]={水温:avg(temps)};
+      }
+      if(Object.keys(result).length>0)return result;
+    }
+  }catch(e){
+    console.warn('Hourly water temp failed, trying daily fallback:',e.message);
+  }
+  const url2=marineApiUrl(station.lat,station.lng,fromDate,toDate,
+    'daily=sea_surface_temperature_max,sea_surface_temperature_min,sea_surface_temperature_mean');
+  const res2=await fetchWithRetry(url2);
+  const json2=await res2.json();
+  const d=json2.daily;
+  if(!d||!d.time)return {};
+  console.warn('Using daily fallback for water temperature');
+  const result={};
+  for(let i=0;i<d.time.length;i++){
+    const mean=d.sea_surface_temperature_mean?d.sea_surface_temperature_mean[i]:null;
+    if(mean!=null)result[d.time[i]]={水温:Math.round(mean*10)/10};
+  }
+  return result;
+}
+
+/* ---------- Log (V6.0 fix: 'log' → 'log-area') ---------- */
+function log(msg,cls=''){
+  const el=document.getElementById('log-area');
+  if(el){
+    const span=document.createElement('div');
+    span.className='ll'+(cls?' '+cls:'');
+    span.textContent=msg;
+    el.appendChild(span);
+    el.scrollTop=el.scrollHeight;
+  }
+  console.log(msg);
+}
+
+/* ---------- Tab switching (V6.0 fix: 'data' → 'summary') ---------- */
+function switchTab(tabName){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+  document.getElementById(`tab-${tabName}`).classList.add('active');
+  if(tabName==='stations')loadStationList();
+  if(tabName==='summary')refreshSummary();
+}
+
+/* ---------- File System Access API (保存先フォルダ) ---------- */
+let saveDirHandle=null;
+const SAVE_DIR_KEY='fishing_condition_save_dir';
+
+async function selectSaveDir(){
+  try{
+    if(!window.showDirectoryPicker){
+      log('このブラウザはフォルダ直接保存に対応していません。Chromeをご利用ください。','warn');
+      showToast('Chrome推奨: フォルダ保存非対応');
+      return;
+    }
+    saveDirHandle=await window.showDirectoryPicker({mode:'readwrite'});
+    /* Store handle in IndexedDB for persistence */
+    await storeDirHandle(saveDirHandle);
+    updateSaveDirDisplay();
+    log(`保存先フォルダ設定: ${saveDirHandle.name}`,'ok');
+    showToast(`保存先: ${saveDirHandle.name}`);
+  }catch(e){
+    if(e.name!=='AbortError')log(`フォルダ選択エラー: ${e.message}`,'err');
+  }
+}
+
+function updateSaveDirDisplay(){
+  const name=saveDirHandle?saveDirHandle.name:'未設定';
+  const statusEl=document.getElementById('save-dir-status');
+  const labelEl=document.getElementById('save-dir-label');
+  if(statusEl)statusEl.textContent=saveDirHandle?`💾 保存先: ${name}`:'💾 保存先: 未設定';
+  if(labelEl)labelEl.textContent=saveDirHandle?`✅ ${name}`:'未設定（ダウンロードフォルダに保存）';
+}
+
+async function storeDirHandle(handle){
+  /* Store directory handle in IndexedDB for cross-session persistence */
+  return new Promise((ok,ng)=>{
+    const req=indexedDB.open('fishing_condition_settings',1);
+    req.onupgradeneeded=e=>{e.target.result.createObjectStore('settings');};
+    req.onsuccess=e=>{
+      const d=e.target.result;
+      const t=d.transaction('settings','readwrite');
+      t.objectStore('settings').put(handle,SAVE_DIR_KEY);
+      t.oncomplete=()=>ok();
+      t.onerror=()=>ng(t.error);
+    };
+    req.onerror=()=>ng(req.error);
+  });
+}
+
+async function loadDirHandle(){
+  return new Promise((ok)=>{
+    const req=indexedDB.open('fishing_condition_settings',1);
+    req.onupgradeneeded=e=>{e.target.result.createObjectStore('settings');};
+    req.onsuccess=e=>{
+      const d=e.target.result;
+      const t=d.transaction('settings','readonly');
+      const r=t.objectStore('settings').get(SAVE_DIR_KEY);
+      r.onsuccess=()=>ok(r.result||null);
+      r.onerror=()=>ok(null);
+    };
+    req.onerror=()=>ok(null);
+  });
+}
+
+async function verifyDirPermission(handle){
+  if(!handle)return false;
+  try{
+    const opts={mode:'readwrite'};
+    if(await handle.queryPermission(opts)==='granted')return true;
+    if(await handle.requestPermission(opts)==='granted')return true;
+  }catch(e){console.warn('Permission check failed:',e);}
+  return false;
+}
+
+/* Save content to a file in the selected directory, or fallback to download */
+async function saveToDir(filename,blob){
+  if(saveDirHandle){
+    try{
+      const ok=await verifyDirPermission(saveDirHandle);
+      if(ok){
+        const fileHandle=await saveDirHandle.getFileHandle(filename,{create:true});
+        const writable=await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return true;
+      }
+    }catch(e){
+      console.warn('Direct save failed, falling back to download:',e);
+    }
+  }
+  /* Fallback: regular download */
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  return false;
+}
+
+/* ---------- Toast ---------- */
+function showToast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+/* ---------- Status bar counts (V6.0 new) ---------- */
+async function updateStatusBar(){
+  try{
+    const weather=await txAll('weather');
+    const waterTemp=await txAll('water_temp');
+    const tide=await txAll('tide');
+    const moonAge=await txAll('moon_age');
+    document.getElementById('weather-count').textContent=`天気: ${weather.length}件`;
+    document.getElementById('water-count').textContent=`水温: ${waterTemp.length}件`;
+    document.getElementById('tide-count').textContent=`潮汐: ${tide.length}件`;
+    document.getElementById('moon-count').textContent=`月齢: ${moonAge.length}件`;
+  }catch(e){console.warn('updateStatusBar error:',e);}
+}
+
+/* ---------- Run badge (V6.0 new) ---------- */
+function setRunBadge(state){
+  const badge=document.getElementById('run-badge');
+  badge.className='status-badge';
+  if(state==='running'){badge.textContent='処理中…';badge.classList.add('running');}
+  else if(state==='done'){badge.textContent='完了';badge.classList.add('done');}
+  else{badge.textContent='待機中';}
+}
+
+/* ---------- Spots grid (V6.0 new) ---------- */
+async function initSpotsGrid(){
+  const stations=await txAll('stations');
+  const grid=document.getElementById('spots-grid');
+  grid.innerHTML=stations.map(s=>`<div class="spot-chip" id="spot-${s.id}"><span class="si">📍</span>${s.name}</div>`).join('');
+}
+function setSpotStatus(stId,status){
+  const el=document.getElementById('spot-'+stId);
+  if(!el)return;
+  el.classList.remove('fetching','done','error');
+  if(status==='fetching'){el.classList.add('fetching');el.querySelector('.si').textContent='⏳';}
+  else if(status==='done'){el.classList.add('done');el.querySelector('.si').textContent='✅';}
+  else if(status==='error'){el.classList.add('error');el.querySelector('.si').textContent='❌';}
+  else{el.querySelector('.si').textContent='📍';}
+}
+
+/* ---------- Progress bar (V6.0 new) ---------- */
+function setProgress(pct,label){
+  const fill=document.getElementById('progress-fill');
+  const lbl=document.getElementById('progress-label');
+  if(fill)fill.style.width=Math.min(100,Math.max(0,pct))+'%';
+  if(lbl)lbl.textContent=label||'';
+}
+
+/* ---------- Stations list (V6.0 fix: use stations-tbody table) ---------- */
+async function loadStationList(){
+  const stations=await txAll('stations');
+  const tbody=document.getElementById('stations-tbody');
+  if(!tbody)return;
+  if(stations.length===0){
+    tbody.innerHTML='<tr><td colspan="7" style="color:var(--text3);text-align:center;padding:20px;">観測地点が登録されていません</td></tr>';
+    return;
+  }
+  tbody.innerHTML=stations.map(s=>{
+    const enabled=s.enabled!==false;
+    return `<tr>
+      <td>${s.spot_name||s.name||''}</td>
+      <td>${s.station_name||s.name||''}</td>
+      <td>${s.lat}</td>
+      <td>${s.lng}</td>
+      <td>${s.tide_code||''}</td>
+      <td><button class="toggle-btn ${enabled?'on':'off'}" onclick="toggleStationEnabled(${s.id})">${enabled?'有効':'無効'}</button></td>
+      <td>
+        <button class="btn btn-edit" style="padding:4px 10px;font-size:.8rem;" onclick="editStation(${s.id})">編集</button>
+        <button class="btn btn-del" style="padding:4px 10px;font-size:.8rem;" onclick="removeStation(${s.id})">削除</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+/* ---------- Station modal (V6.0 fix: use correct modal field IDs) ---------- */
+function openStationModal(st){
+  document.getElementById('modal-title').textContent=st?'地点を編集':'地点を追加';
+  document.getElementById('modal-edit-id').value=st?st.id:'';
+  document.getElementById('modal-id').value=st?st.id:'';
+  document.getElementById('modal-spot').value=st?(st.spot_name||st.name||''):'';
+  document.getElementById('modal-station').value=st?(st.station_name||st.name||''):'';
+  document.getElementById('modal-lat').value=st?st.lat:'';
+  document.getElementById('modal-lng').value=st?st.lng:'';
+  document.getElementById('modal-tide-code').value=st?(st.tide_code||''):'';
+  document.getElementById('station-modal').classList.add('show');
+}
+function closeStationModal(e){
+  if(e&&e.target&&!e.target.classList.contains('modal-overlay'))return;
+  document.getElementById('station-modal').classList.remove('show');
+}
+
+async function saveStation(){
+  const editId=document.getElementById('modal-edit-id').value;
+  const spotName=document.getElementById('modal-spot').value.trim();
+  const stationName=document.getElementById('modal-station').value.trim();
+  const lat=parseFloat(document.getElementById('modal-lat').value);
+  const lng=parseFloat(document.getElementById('modal-lng').value);
+  const tideCode=document.getElementById('modal-tide-code').value.trim();
+  if(!spotName||isNaN(lat)||isNaN(lng)){alert('釣り場名・緯度・経度は必須です');return;}
+  const rec={
+    name:spotName,
+    spot_name:spotName,
+    station_name:stationName||spotName,
+    lat,lng,
+    tide_code:tideCode,
+    enabled:true
+  };
+  if(editId){
+    rec.id=parseInt(editId);
+    /* preserve existing pref if any */
+    const all=await txAll('stations');
+    const old=all.find(s=>s.id===rec.id);
+    if(old&&old.pref)rec.pref=old.pref;
+  }
+  await putRecord('stations',rec);
+  document.getElementById('station-modal').classList.remove('show');
+  loadStationList();
+  initSpotsGrid();
+  showToast('地点を保存しました');
+}
+
+async function editStation(id){
+  const all=await txAll('stations');
+  const st=all.find(s=>s.id===id);
+  if(st)openStationModal(st);
+}
+
+async function removeStation(id){
+  if(!confirm('この地点を削除しますか？'))return;
+  await deleteRecord('stations',id);
+  loadStationList();
+  initSpotsGrid();
+  showToast('地点を削除しました');
+}
+
+async function toggleStationEnabled(id){
+  const all=await txAll('stations');
+  const st=all.find(s=>s.id===id);
+  if(!st)return;
+  st.enabled=st.enabled===false?true:false;
+  await putRecord('stations',st);
+  loadStationList();
+  initSpotsGrid();
+}
+
+/* ---------- Differential update: get earliest & latest dates across ALL stores ---------- */
+async function getDateRangeForStation(stId){
+  let earliest=null,latest=null;
+  for(const storeName of ['weather','water_temp','tide','moon_age']){
+    const all=await txAll(storeName);
+    const stDates=all.filter(r=>r.station_id===stId).map(r=>r.date).sort();
+    if(stDates.length>0){
+      if(!earliest||stDates[0]<earliest)earliest=stDates[0];
+      if(!latest||stDates[stDates.length-1]>latest)latest=stDates[stDates.length-1];
+    }
+  }
+  return {earliest,latest};
+}
+/* Build list of missing date ranges for a station */
+function getMissingRanges(earliest,latest,startDate,endDate){
+  const ranges=[];
+  if(!earliest){
+    /* No data at all → fetch everything */
+    ranges.push({from:startDate,to:endDate});
+  } else {
+    /* Gap before existing data? (e.g. start=2022-01-01 but earliest=2026-03-28) */
+    if(startDate<earliest){
+      const gapEnd=addDays(earliest,-1);
+      if(gapEnd>=startDate)ranges.push({from:startDate,to:gapEnd});
+    }
+    /* Gap after existing data? (e.g. latest=2026-04-10 but today=2026-04-11) */
+    if(latest<endDate){
+      const gapStart=addDays(latest,1);
+      if(gapStart<=endDate)ranges.push({from:gapStart,to:endDate});
+    }
+  }
+  return ranges;
+}
+
+/* ---------- Fetch all (V6.0: Archive API + chunk + 429 retry + 差分更新) ---------- */
+let fetching=false;
+async function fetchAll(){
+  if(fetching){log('取得中です...','warn');return;}
+  fetching=true;
+  const btn=document.getElementById('btn-all');
+  if(btn)btn.disabled=true;
+  setRunBadge('running');
+  try{
+    const stations=(await txAll('stations')).filter(s=>s.enabled!==false);
+    if(stations.length===0){log('有効な観測地点がありません','warn');return;}
+    const toDate=today();
+    log(`=== 全データ一括取得開始 ===`,'head');
+    log(`対象時間帯: 6:00〜9:00 JST`);
+    log(`対象地点: ${stations.length}地点`);
+    log(`デフォルト開始日: ${DEFAULT_START_DATE}`);
+
+    /* Detect missing date ranges per station and build chunk plan */
+    let totalChunks=0;
+    const stationChunks=[];
+    for(const st of stations){
+      const {earliest,latest}=await getDateRangeForStation(st.id);
+      const missingRanges=getMissingRanges(earliest,latest,DEFAULT_START_DATE,toDate);
+      if(missingRanges.length===0){stationChunks.push({st,chunks:[],ranges:[]});continue;}
+      const allChunks=[];
+      for(const range of missingRanges){
+        const c=chunkDateRange(range.from,range.to,CHUNK_DAYS);
+        allChunks.push(...c);
+      }
+      stationChunks.push({st,chunks:allChunks,ranges:missingRanges});
+      totalChunks+=allChunks.length;
+    }
+    log(`合計チャンク数: ${totalChunks}（推定API呼出: ${totalChunks*3}回）`);
+    const totalSteps=totalChunks*4;/* weather,water,wave,tide per chunk */
+    let doneSteps=0;
+    function tick(label){doneSteps++;setProgress(totalSteps>0?doneSteps/totalSteps*100:100,label);}
+
+    for(let si=0;si<stationChunks.length;si++){
+      const {st,chunks,ranges}=stationChunks[si];
+      setSpotStatus(st.id,'fetching');
+      log(`\n--- ${st.name} (${si+1}/${stations.length}) ---`,'head');
+
+      if(chunks.length===0){
+        log(`${st.name}: データは最新です (${DEFAULT_START_DATE}～${toDate})`,'ok');
+        setSpotStatus(st.id,'done');
+        continue;
+      }
+      for(const r of ranges){
+        const days=daysBetween(r.from,r.to)+1;
+        log(`未取得期間: ${r.from} ～ ${r.to} (${days}日)`);
+      }
+      log(`${chunks.length}チャンクに分割して取得`);
+
+      let stError=false;
+      for(let ci=0;ci<chunks.length;ci++){
+        const {from,to}=chunks[ci];
+        const chunkDays=daysBetween(from,to)+1;
+        log(`  チャンク ${ci+1}/${chunks.length}: ${from} ～ ${to} (${chunkDays}日)`);
+
+        // Weather
+        try{
+          const wData=await fetchWeatherForStation(st,from,to);
+          let c=0;for(const [date,vals] of Object.entries(wData)){await putRecord('weather',{station_id:st.id,date,...vals});c++;}
+          log(`    天気: ${c}日分保存`,'ok');
+        }catch(e){log(`    天気エラー: ${e.message}`,'err');stError=true;}
+        tick(`${st.name} 天気`);
+        await new Promise(r=>setTimeout(r,API_DELAY));
+
+        // Water temp
+        try{
+          const wtData=await fetchWaterTempForStation(st,from,to);
+          let c=0;for(const [date,vals] of Object.entries(wtData)){await putRecord('water_temp',{station_id:st.id,date,...vals});c++;}
+          log(`    水温: ${c}日分保存`,'ok');
+        }catch(e){log(`    水温エラー: ${e.message}`,'err');stError=true;}
+        tick(`${st.name} 水温`);
+        await new Promise(r=>setTimeout(r,API_DELAY));
+
+        // Marine (wave) → merge into water_temp
+        try{
+          const mData=await fetchMarineForStation(st,from,to);
+          let c=0;
+          for(const [date,vals] of Object.entries(mData)){
+            const existing=await new Promise((ok,ng)=>{
+              const t=db.transaction('water_temp','readonly');
+              const s=t.objectStore('water_temp');
+              const r=s.get([st.id,date]);
+              r.onsuccess=()=>ok(r.result);r.onerror=()=>ng(r.error);
+            });
+            const merged={station_id:st.id,date,...(existing||{}),...vals};
+            await putRecord('water_temp',merged);c++;
+          }
+          log(`    波浪: ${c}日分保存`,'ok');
+        }catch(e){log(`    波浪エラー: ${e.message}`,'err');stError=true;}
+        tick(`${st.name} 波浪`);
+        await new Promise(r=>setTimeout(r,API_DELAY));
+
+        // Tide + Moon age (no API, local calc)
+        try{
+          let d=new Date(from+'T12:00:00');
+          const toD=new Date(to+'T12:00:00');
+          let c=0;
+          while(d<=toD){
+            const dateStr=localDateStr(d);
+            const mAge=calcMoonAge(dateStr);
+            await putRecord('tide',{station_id:st.id,date:dateStr,潮汐:tideType(mAge)});
+            await putRecord('moon_age',{station_id:st.id,date:dateStr,月齢:mAge,月相:moonPhaseName(mAge)});
+            c++;d.setDate(d.getDate()+1);
+          }
+          log(`    潮汐・月齢: ${c}日分`,'ok');
+        }catch(e){log(`    潮汐エラー: ${e.message}`,'err');stError=true;}
+        tick(`${st.name} 潮汐`);
+      }
+      setSpotStatus(st.id,stError?'error':'done');
+      /* Update status bar after each station */
+      await updateStatusBar();
+    }
+    setProgress(100,'完了');
+    log(`\n=== 全データ取得完了 ===`,'head');
+    showToast('全データ取得完了');
+    /* Auto-save CSV + JSON — V6.1で廃止: Actions一本化のため自動保存を停止 */
+    // await autoSaveAll();
+    log('※ 自動保存はV6.1で廃止されました。本番CSVはGitHub Actionsが生成します。','warn');
+  }catch(e){
+    log(`エラー: ${e.message}`,'err');
+  }finally{
+    fetching=false;
+    if(btn)btn.disabled=false;
+    setRunBadge('done');
+    await updateStatusBar();
+  }
+}
+
+/* ---------- Data summary (V6.0 fix: use summary-grid + summary-tbody) ---------- */
+async function loadDataSummary(){
+  const stations=await txAll('stations');
+  const weather=await txAll('weather');
+  const waterTemp=await txAll('water_temp');
+  const tide=await txAll('tide');
+  const moonAge=await txAll('moon_age');
+
+  /* Summary cards */
+  const grid=document.getElementById('summary-grid');
+  if(grid){
+    const totalDates=new Set();
+    weather.forEach(r=>totalDates.add(r.date));
+    const dateArr=[...totalDates].sort();
+    const range=dateArr.length?`${dateArr[0]} ～ ${dateArr[dateArr.length-1]}`:'—';
+    grid.innerHTML=`
+      <div class="summary-card"><div class="sc-label">天気データ</div><div class="sc-val">${weather.length}</div><div class="sc-sub">件</div></div>
+      <div class="summary-card"><div class="sc-label">水温データ</div><div class="sc-val">${waterTemp.length}</div><div class="sc-sub">件</div></div>
+      <div class="summary-card"><div class="sc-label">潮汐データ</div><div class="sc-val">${tide.length}</div><div class="sc-sub">件</div></div>
+      <div class="summary-card"><div class="sc-label">月齢データ</div><div class="sc-val">${moonAge.length}</div><div class="sc-sub">件</div></div>
+      <div class="summary-card"><div class="sc-label">対象期間</div><div class="sc-val" style="font-size:1rem;">${range}</div><div class="sc-sub">全地点</div></div>
+      <div class="summary-card"><div class="sc-label">登録地点数</div><div class="sc-val">${stations.length}</div><div class="sc-sub">地点</div></div>
+    `;
+  }
+
+  /* Per-station table */
+  const tbody=document.getElementById('summary-tbody');
+  if(tbody){
+    if(stations.length===0){
+      tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text3);">データなし</td></tr>';
+      return;
+    }
+    let totalW=0,totalWT=0,totalT=0;
+    let rows='';
+    for(const st of stations){
+      const wc=weather.filter(r=>r.station_id===st.id).length;
+      const wtc=waterTemp.filter(r=>r.station_id===st.id).length;
+      const tc=tide.filter(r=>r.station_id===st.id).length;
+      totalW+=wc;totalWT+=wtc;totalT+=tc;
+      rows+=`<tr><td>${st.spot_name||st.name}</td><td>${wc}</td><td>${wtc}</td><td>${tc}</td></tr>`;
+    }
+    rows+=`<tr class="total-row"><td>合計</td><td>${totalW}</td><td>${totalWT}</td><td>${totalT}</td></tr>`;
+    tbody.innerHTML=rows;
+  }
+}
+
+/* ---------- Integrated CSV export (日付×地点キーで全データ1ファイル) ---------- */
+async function exportIntegratedCSV(){
+  log('=== 統合CSV出力 ===','head');
+  const stations=await txAll('stations');
+  const weather=await txAll('weather');
+  const waterTemp=await txAll('water_temp');
+  const tide=await txAll('tide');
+  const moonAge=await txAll('moon_age');
+
+  const header=['日付','地点名','観測地点名','県','緯度','経度',
+    '気温_平均','気温_最高','気温_最低','風速_最大','風向','降水量','天気コード','天気',
+    '水温','最大波高','波向','波周期',
+    '潮汐','月齢','月相'];
+  const rows=[header.join(',')];
+
+  /* Build index maps for fast lookup: key = "stationId|date" */
+  const wMap=new Map(); weather.forEach(r=>wMap.set(r.station_id+'|'+r.date,r));
+  const wtMap=new Map(); waterTemp.forEach(r=>wtMap.set(r.station_id+'|'+r.date,r));
+  const tMap=new Map(); tide.forEach(r=>tMap.set(r.station_id+'|'+r.date,r));
+  const mMap=new Map(); moonAge.forEach(r=>mMap.set(r.station_id+'|'+r.date,r));
+
+  /* Collect all unique dates across all stores */
+  const allDates=new Set();
+  weather.forEach(r=>allDates.add(r.date));
+  waterTemp.forEach(r=>allDates.add(r.date));
+  tide.forEach(r=>allDates.add(r.date));
+  const sortedDates=[...allDates].sort();
+
+  for(const date of sortedDates){
+    for(const st of stations){
+      const key=st.id+'|'+date;
+      const w=wMap.get(key)||{};
+      const wt=wtMap.get(key)||{};
+      const t=tMap.get(key)||{};
+      const m=mMap.get(key)||{};
+      /* Skip if no data at all for this date+station */
+      if(!wMap.has(key)&&!wtMap.has(key)&&!tMap.has(key))continue;
+      const row=[
+        date,
+        st.spot_name||st.name||'',
+        st.station_name||st.name||'',
+        st.pref||'',
+        st.lat,st.lng,
+        w.気温_平均??'',w.気温_最高??'',w.気温_最低??'',
+        w.風速_最大??'',w.風向??'',w.降水量??'',w.天気コード??'',w.天気??'',
+        wt.水温??'',wt.最大波高??'',wt.波向??'',wt.波周期??'',
+        t.潮汐??'',m.月齢??'',m.月相??''
+      ];
+      rows.push(row.map(v=>typeof v==='string'&&v.includes(',')?`"${v}"`:v).join(','));
+    }
+  }
+  const bom='\uFEFF';
+  const blob=new Blob([bom+rows.join('\n')],{type:'text/csv;charset=utf-8'});
+  const exportName=`fishing_condition_db_export_${exportTimestamp()}.csv`;
+  const direct=await saveToDir(exportName,blob);
+  const method=direct?'フォルダに保存':'ダウンロード';
+  log(`統合CSV ${method}完了: ${exportName} (${rows.length-1}行, ${sortedDates.length}日 × ${stations.length}地点)`,'ok');
+  showToast(`統合CSV ${method}完了: ${rows.length-1}行`);
+}
+
+/* ---------- Legacy CSV export ---------- */
+async function exportCSV(){
+  const stations=await txAll('stations');
+  const weather=await txAll('weather');
+  const waterTemp=await txAll('water_temp');
+  const tide=await txAll('tide');
+  const moonAge=await txAll('moon_age');
+
+  const header=['地点名','県','緯度','経度','日付',
+    '気温_平均','気温_最高','気温_最低','風速_最大','風向','降水量','天気コード','天気',
+    '水温','最大波高','波向','波周期',
+    '潮汐','月齢','月相'];
+  const rows=[header.join(',')];
+
+  for(const st of stations){
+    const dates=new Set();
+    weather.filter(r=>r.station_id===st.id).forEach(r=>dates.add(r.date));
+    waterTemp.filter(r=>r.station_id===st.id).forEach(r=>dates.add(r.date));
+    tide.filter(r=>r.station_id===st.id).forEach(r=>dates.add(r.date));
+
+    const sortedDates=[...dates].sort();
+    for(const date of sortedDates){
+      const w=weather.find(r=>r.station_id===st.id&&r.date===date)||{};
+      const wt=waterTemp.find(r=>r.station_id===st.id&&r.date===date)||{};
+      const t=tide.find(r=>r.station_id===st.id&&r.date===date)||{};
+      const m=moonAge.find(r=>r.station_id===st.id&&r.date===date)||{};
+
+      const row=[
+        st.name,st.pref||'',st.lat,st.lng,date,
+        w.気温_平均??'',w.気温_最高??'',w.気温_最低??'',w.風速_最大??'',w.風向??'',w.降水量??'',w.天気コード??'',w.天気??'',
+        wt.水温??'',wt.最大波高??'',wt.波向??'',wt.波周期??'',
+        t.潮汐??'',m.月齢??'',m.月相??''
+      ];
+      rows.push(row.map(v=>typeof v==='string'&&v.includes(',')?`"${v}"`:v).join(','));
+    }
+  }
+  const bom='\uFEFF';
+  const blob=new Blob([bom+rows.join('\n')],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`fishing_condition_${today()}.csv`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  log(`CSV出力完了: ${rows.length-1}行`,'ok');
+}
+
+/* ---------- Backup / Restore ---------- */
+async function buildBackupData(){
+  const weather=await txAll('weather');
+  const waterTemp=await txAll('water_temp');
+  const tide=await txAll('tide');
+  const moonAge=await txAll('moon_age');
+  const stations=await txAll('stations');
+  return {weather,water_temp:waterTemp,tide,moon_age:moonAge,stations,exported_at:new Date().toISOString(),version:'V6.0'};
+}
+
+async function backupData(){
+  const data=await buildBackupData();
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const exportName=`fishing_condition_db_export_${exportTimestamp()}.json`;
+  const direct=await saveToDir(exportName,blob);
+  const method=direct?'フォルダに保存':'ダウンロード';
+  log(`JSONエクスポート ${method}完了: ${exportName}`,'ok');
+  showToast(`JSONエクスポート ${method}完了`);
+}
+
+/* Manual JSON export button */
+async function exportIntegratedJSON(){
+  await backupData();
+}
+
+/* Auto-save: V6.1で廃止 — 本番CSVはGitHub Actionsが生成するため自動保存は不要 */
+async function autoSaveAll(){
+  console.log('[V6.1] autoSaveAll は廃止されました。本番CSVはGitHub Actionsが生成します。');
+}
+
+async function restoreData(){
+  const input=document.createElement('input');
+  input.type='file';input.accept='.json';
+  input.onchange=async e=>{
+    const file=e.target.files[0];
+    if(!file)return;
+    try{
+      const text=await file.text();
+      const data=JSON.parse(text);
+      if(!confirm(`バックアップを復元しますか？\n天気:${(data.weather||[]).length}件 水温:${(data.water_temp||[]).length}件\n既存データは上書きされます。`))return;
+      log('復元中...');
+      for(const store of ['weather','water_temp','tide','moon_age']){
+        if(data[store]){
+          await clearStore(store);
+          for(const rec of data[store])await putRecord(store,rec);
+          log(`${store}: ${data[store].length}件復元`,'ok');
+        }
+      }
+      if(data.stations){
+        await clearStore('stations');
+        for(const rec of data.stations)await putRecord('stations',rec);
+        log(`stations: ${data.stations.length}件復元`,'ok');
+      }
+      log('復元完了','ok');
+      await updateStatusBar();
+      loadDataSummary();
+      loadStationList();
+      initSpotsGrid();
+      showToast('復元完了');
+    }catch(err){log(`復元エラー: ${err.message}`,'err');}
+  };
+  input.click();
+}
+
+async function clearAllData(){
+  if(!confirm('全データを削除しますか？この操作は取り消せません。'))return;
+  if(!confirm('本当に全データを削除しますか？'))return;
+  for(const store of ['weather','water_temp','tide','moon_age'])await clearStore(store);
+  log('全データ削除完了','warn');
+  await updateStatusBar();
+  loadDataSummary();
+  showToast('全データ削除完了');
+}
+
+/* ---------- Partial fetch (V6.0: Archive + chunk + 429 retry) ---------- */
+async function runAll(){return fetchAll();}
+
+async function fetchPartial(types){
+  if(fetching){log('取得中です...','warn');return;}
+  fetching=true;
+  const btn=document.getElementById('btn-all');
+  if(btn)btn.disabled=true;
+  setRunBadge('running');
+  try{
+    const stations=(await txAll('stations')).filter(s=>s.enabled!==false);
+    if(stations.length===0){log('有効な観測地点がありません','warn');return;}
+    const toDate=today();
+    log(`=== データ取得開始 (${types.join(', ')}) ===`,'head');
+
+    for(let si=0;si<stations.length;si++){
+      const st=stations[si];
+      setSpotStatus(st.id,'fetching');
+      log(`\n--- ${st.name} (${si+1}/${stations.length}) ---`,'head');
+
+      /* Detect missing date ranges */
+      const {earliest,latest}=await getDateRangeForStation(st.id);
+      const missingRanges=getMissingRanges(earliest,latest,DEFAULT_START_DATE,toDate);
+      if(missingRanges.length===0){
+        log(`${st.name}: データは最新です`,'ok');
+        setSpotStatus(st.id,'done');
+        continue;
+      }
+      const chunks=[];
+      for(const range of missingRanges){chunks.push(...chunkDateRange(range.from,range.to,CHUNK_DAYS));}
+      for(const r of missingRanges){log(`未取得: ${r.from} ～ ${r.to}`);}
+      log(`${chunks.length}チャンクに分割`);
+
+      let stError=false;
+      for(let ci=0;ci<chunks.length;ci++){
+        const {from,to}=chunks[ci];
+        log(`  チャンク ${ci+1}/${chunks.length}: ${from} ～ ${to}`);
+        setProgress((si*chunks.length+ci)/(stations.length*chunks.length)*100,`${st.name} ${ci+1}/${chunks.length}`);
+
+        if(types.includes('weather')){
+          try{
+            const wData=await fetchWeatherForStation(st,from,to);
+            let c=0;for(const [date,vals] of Object.entries(wData)){await putRecord('weather',{station_id:st.id,date,...vals});c++;}
+            log(`    天気: ${c}日分`,'ok');
+          }catch(e){log(`    天気エラー: ${e.message}`,'err');stError=true;}
+          await new Promise(r=>setTimeout(r,API_DELAY));
+        }
+        if(types.includes('water')){
+          try{
+            const wtData=await fetchWaterTempForStation(st,from,to);
+            let c=0;for(const [date,vals] of Object.entries(wtData)){await putRecord('water_temp',{station_id:st.id,date,...vals});c++;}
+            log(`    水温: ${c}日分`,'ok');
+          }catch(e){log(`    水温エラー: ${e.message}`,'err');stError=true;}
+          await new Promise(r=>setTimeout(r,API_DELAY));
+          try{
+            const mData=await fetchMarineForStation(st,from,to);
+            let c=0;
+            for(const [date,vals] of Object.entries(mData)){
+              const existing=await new Promise((ok,ng)=>{const t=db.transaction('water_temp','readonly');const s=t.objectStore('water_temp');const r=s.get([st.id,date]);r.onsuccess=()=>ok(r.result);r.onerror=()=>ng(r.error);});
+              const merged={station_id:st.id,date,...(existing||{}),...vals};
+              await putRecord('water_temp',merged);c++;
+            }
+            log(`    波浪: ${c}日分`,'ok');
+          }catch(e){log(`    波浪エラー: ${e.message}`,'err');stError=true;}
+          await new Promise(r=>setTimeout(r,API_DELAY));
+        }
+        if(types.includes('tide')){
+          try{
+            let d=new Date(from+'T12:00:00');const toD=new Date(to+'T12:00:00');let c=0;
+            while(d<=toD){
+              const dateStr=localDateStr(d);
+              const mAge=calcMoonAge(dateStr);
+              await putRecord('tide',{station_id:st.id,date:dateStr,潮汐:tideType(mAge)});
+              await putRecord('moon_age',{station_id:st.id,date:dateStr,月齢:mAge,月相:moonPhaseName(mAge)});
+              c++;d.setDate(d.getDate()+1);
+            }
+            log(`    潮汐・月齢: ${c}日分`,'ok');
+          }catch(e){log(`    潮汐エラー: ${e.message}`,'err');stError=true;}
+        }
+      }
+      setSpotStatus(st.id,stError?'error':'done');
+      await updateStatusBar();
+    }
+    setProgress(100,'完了');
+    log('\n=== 取得完了 ===','head');
+    showToast('取得完了');
+    /* Auto-save CSV + JSON — V6.1で廃止: Actions一本化のため自動保存を停止 */
+    // await autoSaveAll();
+    log('※ 自動保存はV6.1で廃止されました。本番CSVはGitHub Actionsが生成します。','warn');
+  }catch(e){log(`エラー: ${e.message}`,'err');}
+  finally{
+    fetching=false;
+    if(btn)btn.disabled=false;
+    setRunBadge('done');
+    await updateStatusBar();
+  }
+}
+
+async function runWeather(){return fetchPartial(['weather']);}
+async function runWater(){return fetchPartial(['water']);}
+async function runTide(){return fetchPartial(['tide']);}
+
+/* ---------- Log clear (V6.0 fix: 'log' → 'log-area') ---------- */
+function clearLog(){const el=document.getElementById('log-area');if(el)el.innerHTML='';}
+
+/* ---------- Individual CSV exports ---------- */
+async function exportSingleCSV(storeName,filenamePrefix,headerRow,rowFn){
+  const stations=await txAll('stations');
+  const data=await txAll(storeName);
+  const rows=[headerRow.join(',')];
+  for(const st of stations){
+    const stData=data.filter(r=>r.station_id===st.id).sort((a,b)=>a.date.localeCompare(b.date));
+    for(const rec of stData){rows.push(rowFn(st,rec));}
+  }
+  const bom='\uFEFF';
+  const blob=new Blob([bom+rows.join('\n')],{type:'text/csv;charset=utf-8'});
+  const fname=`${filenamePrefix}_${today()}.csv`;
+  await saveToDir(fname,blob);
+  log(`${filenamePrefix} CSV出力完了: ${rows.length-1}行`,'ok');
+  showToast(`${filenamePrefix} CSV出力完了`);
+}
+
+async function exportWeather(){
+  await exportSingleCSV('weather','weather',
+    ['地点名','県','緯度','経度','日付','気温_平均','気温_最高','気温_最低','風速_最大','風向','降水量','天気コード','天気'],
+    (st,r)=>[st.name,st.pref||'',st.lat,st.lng,r.date,r.気温_平均??'',r.気温_最高??'',r.気温_最低??'',r.風速_最大??'',r.風向??'',r.降水量??'',r.天気コード??'',r.天気??''].map(v=>typeof v==='string'&&v.includes(',')?`"${v}"`:v).join(',')
+  );
+}
+async function exportWater(){
+  await exportSingleCSV('water_temp','water_temp',
+    ['地点名','県','緯度','経度','日付','水温','最大波高','波向','波周期'],
+    (st,r)=>[st.name,st.pref||'',st.lat,st.lng,r.date,r.水温??'',r.最大波高??'',r.波向??'',r.波周期??''].map(v=>typeof v==='string'&&v.includes(',')?`"${v}"`:v).join(',')
+  );
+}
+async function exportTide(){
+  await exportSingleCSV('tide','tide',
+    ['地点名','県','緯度','経度','日付','潮汐'],
+    (st,r)=>[st.name,st.pref||'',st.lat,st.lng,r.date,r.潮汐??''].join(',')
+  );
+}
+async function exportMoon(){
+  await exportSingleCSV('moon_age','moon_age',
+    ['地点名','県','緯度','経度','日付','月齢','月相'],
+    (st,r)=>[st.name,st.pref||'',st.lat,st.lng,r.date,r.月齢??'',r.月相??''].join(',')
+  );
+}
+async function exportAll(){
+  log('=== 全データ一括出力 ===','head');
+  await exportWeather();
+  await exportWater();
+  await exportTide();
+  await exportMoon();
+  log('=== 一括出力完了 ===','head');
+}
+
+/* ---------- Backup wrappers ---------- */
+async function backupDB(){return backupData();}
+async function restoreDB(e){
+  const file=e.target.files[0];
+  if(!file)return;
+  try{
+    const text=await file.text();
+    const data=JSON.parse(text);
+    if(!confirm(`バックアップを復元しますか？\n天気:${(data.weather||[]).length}件 水温:${(data.water_temp||[]).length}件\n既存データは上書きされます。`))return;
+    log('復元中...');
+    for(const store of ['weather','water_temp','tide','moon_age']){
+      if(data[store]){
+        await clearStore(store);
+        for(const rec of data[store])await putRecord(store,rec);
+        log(`${store}: ${data[store].length}件復元`,'ok');
+      }
+    }
+    if(data.stations){
+      await clearStore('stations');
+      for(const rec of data.stations)await putRecord('stations',rec);
+      log(`stations: ${data.stations.length}件復元`,'ok');
+    }
+    log('復元完了','ok');
+    await updateStatusBar();
+    loadDataSummary();
+    loadStationList();
+    initSpotsGrid();
+    showToast('復元完了');
+  }catch(err){log(`復元エラー: ${err.message}`,'err');}
+  e.target.value='';
+}
+
+/* ---------- Stations JSON export ---------- */
+async function exportStationsJSON(){
+  const stations=await txAll('stations');
+  const blob=new Blob([JSON.stringify(stations,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`stations_${today()}.json`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  log(`stations.json出力完了: ${stations.length}件`,'ok');
+  showToast('stations.json出力完了');
+}
+
+/* ---------- Summary refresh ---------- */
+async function refreshSummary(){await loadDataSummary();}
+
+/* ---------- Init (V6.0: full initialization) ---------- */
+window.addEventListener('DOMContentLoaded',async()=>{
+  try{
+    await openDB();
+    document.getElementById('db-status').textContent='DB: 接続済み';
+    await initStations();
+    await loadStationList();
+    await initSpotsGrid();
+    await loadDataSummary();
+    await updateStatusBar();
+    /* Restore saved directory handle */
+    try{
+      const h=await loadDirHandle();
+      if(h){saveDirHandle=h;updateSaveDirDisplay();}
+    }catch(e){console.warn('Could not restore dir handle:',e);}
+    setRunBadge('idle');
+    log('初期化完了 - V6.0 (6:00-9:00 JST対応)','ok');
+    if(saveDirHandle)log(`保存先フォルダ: ${saveDirHandle.name}`,'ok');
+    else log('保存先フォルダ未設定 — CSV出力タブで設定してください');
+  }catch(e){
+    document.getElementById('db-status').textContent='DB: エラー';
+    log(`初期化エラー: ${e.message}`,'err');
+  }
+});
+</script>
+</body>
+</html>

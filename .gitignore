@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# ログ・一時ファイル
+logs/
+_emit_tmp/
+.ci_out/
+*.bak
+*.bak.*
+*.tmp
+
+# 解析エンジンの一時生成物
+scripts/daily_update_log.txt
+scripts/run.log
+
+# OS / OneDrive / IDE
+~$*
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# 環境変数・クレデンシャル（secrets を誤コミットしない）
+.env
+*.env
+.env.*
+*.secret
+*credentials*
+*.key
+*.pem
+
+# Node.js
+node_modules/
+npm-debug.log*
+
+# Git 旧破損ファイル（bindfs マウント由来）
+.git.broken/
