@@ -127,3 +127,92 @@ python -m http.server 8000
 - `supergonti/muroto_fishing_forecast`（出船可否）
 
 本リポジトリ（`supergonti/fishing-system`）がこれら5つを統合した正本となります。
+
+---
+
+## ローカル開発・動作確認（W5-3 追記）
+
+### 起動手順
+
+1. 前提: Python 3.11、Node.js 20（収集系のみ使う場合は Python だけで可）
+2. 依存インストール: `pip install -r requirements.txt`
+3. ローカル HTTP サーバ起動: `python -m http.server 8000`
+4. ブラウザで `http://localhost:8000/<アプリ名>.html` にアクセス
+5. ページ最上部の共通ナビバーで6アプリ間を移動できる
+
+### 共通ナビバーについて
+
+W5-3 で全6アプリの先頭に共通ナビ（`<nav class="fs-nav">`）を埋め込んだ。
+現在ページは自動でハイライトされる（`<body data-fs-page="...">` を読み取って判定）。
+
+### favicon について
+
+`favicon.svg` をルートに配置し、全 HTML から `<link rel="icon" type="image/svg+xml" href="./favicon.svg">` で参照。
+ブラウザタブで青地に波と釣り針のアイコンが表示される。差し替えたい場合は `favicon.svg` を編集するだけ。
+
+### fetch_forecast.py の使い方（W5-3 改善）
+
+```powershell
+# 既定: data/forecast_data.json に保存
+python scripts/fetch_forecast.py
+
+# 出力先を変えたい場合
+python scripts/fetch_forecast.py --output /tmp/test_forecast.json
+```
+
+- 失敗時は最大3回まで指数バックオフ（2/4/8秒）で再試行
+- ログは stderr と `logs/forecast.log` に時刻つきで出力
+- 例外時は exit 1（CI から失敗を検知できる）
+
+---
+
+## トラブルシューティング
+
+| 症状 | 対応 |
+|---|---|
+| `./data/*.csv` が 404 になる | `python -m http.server 8000` 経由で開く（`file://` 直叩きは NG） |
+| favicon が表示されない | ブラウザキャッシュをクリア（Ctrl + F5） |
+| `fetch_forecast.py` が exit 1 | 3回再試行でも取れていない。Open-Meteo 一時障害 or 社内プロキシで弾かれている可能性。`logs/forecast.log` を確認、時間を空けて再実行 |
+| `update-conditions.yml` が空振り | `data/fishing_data.csv` の push がトリガー。collector.html から push されていないと動かない |
+| ナビが既存レイアウトとぶつかる | `fs-nav` プレフィックスで衝突回避済。それでも干渉する場合は該当ファイルの `<style>.fs-nav...</style>` を調整 |
+
+---
+
+## データアーキテクチャの原則
+
+- `data/master_catch.csv` を**正本**とし、`engines/` の emit 系で派生 CSV を生成
+- 散在コピー（旧リポ各所の同名 CSV）は統合リポでは保持しない
+- 全データ参照は `./data/<filename>` の相対パスで統一（HTML/JS とも）
+
+詳細は `fishing-renovation/設計_W3-1_統合アーキ_20260417.md` ほか W3 系設計ドキュメント参照。
+
+---
+
+## 将来の海域別拡張
+
+現行の6アプリは室戸沖を主対象とする。将来「足摺沖」「宇和島沖」など海域別ソフトを追加する場合：
+
+### ファイル命名ルール（推奨）
+
+- `<海域名>_fishingdata.html`（例: `asizuri_fishingdata.html`）
+- `<海域名>_fishing_analysis.html`
+- `<海域名>_fishingforecast.html`
+
+### ナビへの追加方法
+
+`<nav class="fs-nav">` 内に `<a>` を1行追加し、対応する HTML の `<body>` に `data-fs-page="<識別子>"` を設定する。
+海域が3つ以上に増えたら、`<details>` か CSS dropdown でグルーピングを検討。
+
+### データ層の拡張
+
+地点別データは `data/<海域名>/<filename>` のサブフォルダに格納する方針が基本。
+集約マスター（`master_catch.csv`）は海域フィルタを `area` 列で扱う想定（既存スキーマ）。
+
+---
+
+## 開発版／安定版の運用
+
+CLAUDE.md の運用ルールに従い、開発中の HTML は `<アプリ名>_dev.html` として並置する。
+詳しくは [`docs/versioning.md`](./docs/versioning.md) を参照。
+
+現時点（W5-3 完了時点）では `_dev.html` ファイルは存在しない。必要になった時点で個別作成する。

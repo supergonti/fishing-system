@@ -37,10 +37,21 @@ from engines import (  # noqa: E402
 
 
 # --- デフォルトパス（統合リポ基準） -----------------------------------------
-# 全マスターデータは data/ 配下に集約されている（W5-2 統合リポ構築）
-DEFAULT_MASTER = os.path.join(_ROOT, "data", "master_catch.csv")
-DEFAULT_C3 = os.path.join(_ROOT, "data", "fishing_condition_db.csv")
-DEFAULT_C4 = os.path.join(_ROOT, "data", "muroto_offshore_current_all.csv")
+# 全マスターデータは data/ 配下に集約されている（W5-2 統合リポ構築）。
+# W5-3 改善: PROJECT_ROOT 相対 + 環境変数で上書き可能（W5-1 申し送り解消）
+#   FISHING_MASTER_PATH / FISHING_C3_PATH / FISHING_C4_PATH
+DEFAULT_MASTER = os.environ.get(
+    "FISHING_MASTER_PATH",
+    os.path.join(_ROOT, "data", "master_catch.csv"),
+)
+DEFAULT_C3 = os.environ.get(
+    "FISHING_C3_PATH",
+    os.path.join(_ROOT, "data", "fishing_condition_db.csv"),
+)
+DEFAULT_C4 = os.environ.get(
+    "FISHING_C4_PATH",
+    os.path.join(_ROOT, "data", "muroto_offshore_current_all.csv"),
+)
 
 # ゴールデン（W5-1 採取済、tests/golden/ 配下）
 GOLDEN_DIR = os.path.join(_ROOT, "tests", "golden")

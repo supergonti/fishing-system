@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>統合釣果データベース V6.0</title>
+<link rel="icon" type="image/svg+xml" href="./favicon.svg">
+<link rel="alternate icon" href="./favicon.ico">
 <style>
 :root{
   --bg:#f0f4f8;--surface:#fff;--primary:#1a3a5c;--primary2:#1a5276;
@@ -125,7 +127,27 @@ td.env-td{background:var(--env-bg);color:#0a4a57;}
 .active-sort .sort-arrow{opacity:1;}
 </style>
 </head>
-<body>
+<body data-fs-page="fishingdata">
+<!-- fishing-system 共通ナビ v1 (W5-3) -->
+<nav class="fs-nav">
+  <a href="./collector.html"               data-fs="collector">釣果収集</a>
+  <a href="./condition.html"               data-fs="condition">条件分析</a>
+  <a href="./fishingdata.html"             data-fs="fishingdata">統合釣果DB</a>
+  <a href="./muroto_offshore_current.html" data-fs="muroto_current">潮流</a>
+  <a href="./muroto_fishing_analysis.html" data-fs="muroto_analysis">解析</a>
+  <a href="./muroto_fishingforecast.html"  data-fs="muroto_forecast">出船判断</a>
+</nav>
+<style>
+.fs-nav{display:flex;flex-wrap:wrap;gap:.25rem;padding:.5rem;background:#0a3d62;border-bottom:2px solid #0ea5e9;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic UI",sans-serif;box-sizing:border-box}
+.fs-nav a{color:#eef;text-decoration:none;padding:.35rem .7rem;border-radius:4px;font-size:.9rem;font-weight:500;line-height:1.2}
+.fs-nav a:hover{background:#114477}
+.fs-nav a.fs-active{background:#0ea5e9;color:#023;pointer-events:none}
+</style>
+<script>
+(function(){var cur=document.body.getAttribute('data-fs-page');
+ if(!cur)return;var a=document.querySelector('.fs-nav a[data-fs="'+cur+'"]');
+ if(a)a.classList.add('fs-active');})();
+</script>
 <div id="loading-bar"></div>
 
 <!-- ヘッダー -->

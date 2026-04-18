@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>釣果データ収集ソフト V5.5</title>
+<link rel="icon" type="image/svg+xml" href="./favicon.svg">
+<link rel="alternate icon" href="./favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -171,7 +173,27 @@ th.chk-col,td.chk-col{width:36px;text-align:center;padding:6px 4px;}
 @media(max-width:600px){.header{padding:8px 12px;}.header-title{font-size:17px;letter-spacing:2px;}.header-sub{display:none;}.tab-btn{padding:8px 10px;font-size:11px;letter-spacing:0;}.stats-bar{gap:8px;padding:7px 10px;flex-wrap:wrap;}.sv{font-size:16px;}.sl{font-size:9px;}.bulk-bar{padding:6px 8px;gap:5px;}.bulk-bar .btn{padding:6px 10px;font-size:11px;}.table-wrap{height:680px;}}
 </style>
 </head>
-<body>
+<body data-fs-page="collector">
+<!-- fishing-system 共通ナビ v1 (W5-3) -->
+<nav class="fs-nav">
+  <a href="./collector.html"               data-fs="collector">釣果収集</a>
+  <a href="./condition.html"               data-fs="condition">条件分析</a>
+  <a href="./fishingdata.html"             data-fs="fishingdata">統合釣果DB</a>
+  <a href="./muroto_offshore_current.html" data-fs="muroto_current">潮流</a>
+  <a href="./muroto_fishing_analysis.html" data-fs="muroto_analysis">解析</a>
+  <a href="./muroto_fishingforecast.html"  data-fs="muroto_forecast">出船判断</a>
+</nav>
+<style>
+.fs-nav{display:flex;flex-wrap:wrap;gap:.25rem;padding:.5rem;background:#0a3d62;border-bottom:2px solid #0ea5e9;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic UI",sans-serif;box-sizing:border-box}
+.fs-nav a{color:#eef;text-decoration:none;padding:.35rem .7rem;border-radius:4px;font-size:.9rem;font-weight:500;line-height:1.2}
+.fs-nav a:hover{background:#114477}
+.fs-nav a.fs-active{background:#0ea5e9;color:#023;pointer-events:none}
+</style>
+<script>
+(function(){var cur=document.body.getAttribute('data-fs-page');
+ if(!cur)return;var a=document.querySelector('.fs-nav a[data-fs="'+cur+'"]');
+ if(a)a.classList.add('fs-active');})();
+</script>
 <div class="header">
   <div>
     <div class="header-title">釣果データ収集ソフト V5.5</div>

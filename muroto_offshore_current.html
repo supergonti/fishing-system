@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="室戸沖5地点（北西・西・室戸沖・東・北東）の海流・水温・塩分データをリアルタイム表示するダッシュボード">
   <title>室戸沖潮流ダッシュボード V2.0</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="alternate icon" href="./favicon.ico">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js" defer></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
@@ -171,7 +173,27 @@
     }
   </style>
 </head>
-<body>
+<body data-fs-page="muroto_current">
+<!-- fishing-system 共通ナビ v1 (W5-3) -->
+<nav class="fs-nav">
+  <a href="./collector.html"               data-fs="collector">釣果収集</a>
+  <a href="./condition.html"               data-fs="condition">条件分析</a>
+  <a href="./fishingdata.html"             data-fs="fishingdata">統合釣果DB</a>
+  <a href="./muroto_offshore_current.html" data-fs="muroto_current">潮流</a>
+  <a href="./muroto_fishing_analysis.html" data-fs="muroto_analysis">解析</a>
+  <a href="./muroto_fishingforecast.html"  data-fs="muroto_forecast">出船判断</a>
+</nav>
+<style>
+.fs-nav{display:flex;flex-wrap:wrap;gap:.25rem;padding:.5rem;background:#0a3d62;border-bottom:2px solid #0ea5e9;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic UI",sans-serif;box-sizing:border-box}
+.fs-nav a{color:#eef;text-decoration:none;padding:.35rem .7rem;border-radius:4px;font-size:.9rem;font-weight:500;line-height:1.2}
+.fs-nav a:hover{background:#114477}
+.fs-nav a.fs-active{background:#0ea5e9;color:#023;pointer-events:none}
+</style>
+<script>
+(function(){var cur=document.body.getAttribute('data-fs-page');
+ if(!cur)return;var a=document.querySelector('.fs-nav a[data-fs="'+cur+'"]');
+ if(a)a.classList.add('fs-active');})();
+</script>
 
 <header>
   <div style="display:flex;align-items:baseline;gap:10px;min-width:0;flex:1">

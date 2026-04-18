@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="description" content="室戸岬沖への遊漁船出船可否を波高・風向・風波など6ファクターで自動判定。Open-Meteo APIによる5日間予報。">
 <title>室戸沖 出船判断システム | 室戸岬沖 遊漁船予報</title>
+<link rel="icon" type="image/svg+xml" href="./favicon.svg">
+<link rel="alternate icon" href="./favicon.ico">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN',sans-serif;background:#f5f7fa;color:#1a1a2e;min-height:100vh}
@@ -93,7 +95,27 @@ td{padding:7px 8px;color:#1a1a2e;vertical-align:middle}
 .note{font-size:11px;color:#888;margin-top:8px;line-height:1.7;background:#fafbfc;border:1px solid #e0e4ea;border-radius:8px;padding:10px 14px}
 </style>
 </head>
-<body>
+<body data-fs-page="muroto_forecast">
+<!-- fishing-system 共通ナビ v1 (W5-3) -->
+<nav class="fs-nav">
+  <a href="./collector.html"               data-fs="collector">釣果収集</a>
+  <a href="./condition.html"               data-fs="condition">条件分析</a>
+  <a href="./fishingdata.html"             data-fs="fishingdata">統合釣果DB</a>
+  <a href="./muroto_offshore_current.html" data-fs="muroto_current">潮流</a>
+  <a href="./muroto_fishing_analysis.html" data-fs="muroto_analysis">解析</a>
+  <a href="./muroto_fishingforecast.html"  data-fs="muroto_forecast">出船判断</a>
+</nav>
+<style>
+.fs-nav{display:flex;flex-wrap:wrap;gap:.25rem;padding:.5rem;background:#0a3d62;border-bottom:2px solid #0ea5e9;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic UI",sans-serif;box-sizing:border-box}
+.fs-nav a{color:#eef;text-decoration:none;padding:.35rem .7rem;border-radius:4px;font-size:.9rem;font-weight:500;line-height:1.2}
+.fs-nav a:hover{background:#114477}
+.fs-nav a.fs-active{background:#0ea5e9;color:#023;pointer-events:none}
+</style>
+<script>
+(function(){var cur=document.body.getAttribute('data-fs-page');
+ if(!cur)return;var a=document.querySelector('.fs-nav a[data-fs="'+cur+'"]');
+ if(a)a.classList.add('fs-active');})();
+</script>
 
 <header class="hd">
   <span aria-hidden="true" style="font-size:22px">⚓</span>
