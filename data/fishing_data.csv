@@ -1,5 +1,4 @@
 ﻿date,time,species,size_cm,weight_kg,count,bait,method,spot,spot_lat,spot_lng,nearest_station,tide,weather,temp,water_temp,wind,memo,source
-2026-04-12,14:00,テスト_S4-2_E2E,60,3,1,,,室戸,,,室戸,,,,,,,Manual
 2026-04-19,08:57,カツオ_W6-3_E2E,30,30,30,,底物泳がせ,室戸沖,,,室戸,,,30,30,30,,Manual
 2026-04-17,17:00,クエTEST,2,2,2,泳がせ,底物泳がせ,室戸沖,,,室戸,,,2,2,2,,Manual
 2026-04-16,17:00,マダイ_W6_TEST,1,1,1,,,室戸,,,室戸,,,1,1,1,,Manual
