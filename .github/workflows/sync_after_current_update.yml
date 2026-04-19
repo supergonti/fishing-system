@@ -1,0 +1,95 @@
+name: 海流データ更新後 v2.1 自動同期 / Sync v2.1 after current update
+
+# W6-3（2026-04-19）で新設。
+# update_data.yml が前日分の海流データを取得・コミットした **直後** に起動し、
+# 派生 CSV3本（emit_all）と analysis_result.json（analyze_engine.py）を再生成する。
+#
+# トリガー連鎖:
+#   update_data.yml (毎日 06:30 JST 自動 or 手動)
+#     → data/muroto_offshore_current_all.csv push
+#     → 本ワークフロー起動（paths フィルタ）
+#     → emit_all → analyze_engine → commit & push
+#     → V6.0 / v2.1 ともに前日海流入りで反映完了
+#
+# concurrency:
+#   - sync-after-master-push（V5.5 push 由来）と sync-v21（本ワークフロー）は別グループ。
+#   - 同一 commit 内で master_catch と current の両方が動くケースは想定しない
+#     （V5.5 と CMEMS の更新源が別）。万一同時起動しても冪等なので問題なし。
+#
+# 関連:
+#   - .github/workflows/update_data.yml          （CMEMS 取得本体、トリガー連鎖元）
+#   - .github/workflows/sync_after_master_push.yml（V5.5 push 由来の同期）
+#   - engines/emit_all.py
+#   - scripts/analyze_engine.py
+
+on:
+  push:
+    paths:
+      - 'data/muroto_offshore_current_all.csv'
+    branches:
+      - main
+  workflow_dispatch:  # 手動再生成も可
+
+concurrency:
+  group: sync-v21
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Python 3.11 セットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 依存パッケージをインストール
+        run: pip install -r requirements.txt
+
+      # --- emit_all で派生CSV群を再生成 ---
+      # 海流データ（C④）が更新されたので、これを参照する fishing_data /
+      # fishing_muroto_v1 / fishing_integrated を再ビルドする。
+      - name: emit_all で派生CSV群を再生成
+        run: |
+          python -m engines.emit_all \
+            --master  data/master_catch.csv \
+            --c3      data/fishing_condition_db.csv \
+            --c4      data/muroto_offshore_current_all.csv \
+            --out-dir data
+
+      # --- analyze_engine.py で v2.1 解析結果を再生成 ---
+      # 派生 CSV を読み直し、analysis_result.json と development.html / index.html の
+      # window.ANALYSIS_DATA 埋込を更新。
+      - name: v2.1 解析結果を再生成 (analyze_engine.py)
+        run: |
+          python scripts/analyze_engine.py
+
+      # --- 変更があれば commit & push（[skip ci] 付き） ---
+      - name: コミット＆プッシュ
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add data/fishing_data.csv
+          git add data/fishing_integrated.csv
+          git add data/fishing_muroto_v1.csv
+          git add data/analysis/analysis_result.json
+          # 統合リポでは muroto_fishing_analysis.html が development.html / index.html
+          # の両方を兼ねる（W5-3 で統一）。
+          git add muroto_fishing_analysis.html
+
+          if git diff --staged --quiet; then
+            echo "変更なし。コミットをスキップします。"
+          else
+            git commit -m "v2.1 同期(海流更新): $(date -u +%Y-%m-%dT%H:%M:%SZ) [skip ci]"
+            git push
+            echo "コミット＆プッシュ完了"
+          fi

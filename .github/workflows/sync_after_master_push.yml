@@ -1,14 +1,20 @@
-name: V5.5 push後 V6.0 自動同期 / Sync V6.0 after master_catch push
+name: V5.5 push後 V6.0 / v2.1 自動同期 / Sync V6.0 + v2.1 after master_catch push
 
-# W6-2（2026-04-19）で新設。
-# V5.5 から data/master_catch.csv が push されたら、不足日付の気象データを
-# Open-Meteo から取得して fishing_condition_db.csv に追記し、emit_all で派生
-# CSV3本（fishing_data / fishing_muroto_v1 / fishing_integrated）を再生成して
-# まとめて [skip ci] 付きで commit & push する。
+# W6-2（2026-04-19）で新設、W6-3（2026-04-19）で v2.1 同期へ拡張。
+# V5.5 から data/master_catch.csv が push されたら：
+#   Step A : 不足日付の気象データを Open-Meteo から取得し fishing_condition_db.csv に追記
+#   Step B': 不足日付の海流データを CMEMS から取得し muroto_offshore_current_all.csv に追記
+#            （CMEMS は当日分を提供しないので、当日追加レコードの海流欄は空欄のまま。
+#             翌日 06:30 JST の update_data.yml → sync_after_current_update.yml で補充される）
+#   Step B : emit_all で派生 CSV3本（fishing_data / fishing_muroto_v1 / fishing_integrated）を再生成
+#   Step D : analyze_engine.py で analysis_result.json と development.html / index.html の埋込を再生成
+#   Step C : 5ファイル（4派生CSV + analysis_result.json）と HTML 埋込更新を [skip ci] 付きで commit & push
 #
 # 関連:
-#   - scripts/sync_condition_db.py（新設, W6-2）
-#   - engines/emit_all.py（W4-1 で実装）
+#   - scripts/sync_condition_db.py（W6-2 新設）
+#   - scripts/sync_current_db.py  （W6-3 新設、main.py の薄いラッパー）
+#   - scripts/analyze_engine.py   （v2.1 解析エンジン、CI 化対応）
+#   - engines/emit_all.py         （W4-1 で実装）
 #   - 旧 build-and-deploy.yml は本ファイルにより置換され削除済み
 
 on:
@@ -52,6 +58,19 @@ jobs:
             --master    data/master_catch.csv \
             --condition data/fishing_condition_db.csv
 
+      # --- Step B': 海流データの不足日付を CMEMS から差分取得（W6-3 追加） ---
+      # CMEMS は当日分を提供しない（前日分まで）。当日追加レコードの海流欄は
+      # 空欄のままここで終わり、翌日 06:30 JST の update_data.yml → sync_after_current_update.yml
+      # で補充される。失敗時は exit 1 で Actions を停止。
+      - name: 海流データ差分取得 (sync_current_db.py)
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.CMEMS_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.CMEMS_PASSWORD }}
+        run: |
+          python scripts/sync_current_db.py \
+            --master  data/master_catch.csv \
+            --current data/muroto_offshore_current_all.csv
+
       # --- Step B: emit_all で派生CSV群を再生成 ---
       - name: emit_all で派生CSV群を再生成
         run: |
@@ -60,6 +79,13 @@ jobs:
             --c3      data/fishing_condition_db.csv \
             --c4      data/muroto_offshore_current_all.csv \
             --out-dir data
+
+      # --- Step D: analyze_engine.py で v2.1 解析結果を再生成（W6-3 追加） ---
+      # data/analysis/analysis_result.json と development.html / index.html の
+      # window.ANALYSIS_DATA 埋込を一括更新。純粋なデータ処理で外部 API は使わない。
+      - name: v2.1 解析結果を再生成 (analyze_engine.py)
+        run: |
+          python scripts/analyze_engine.py
 
       # --- Step C: 変更があれば commit & push（[skip ci] 付き） ---
       - name: コミット＆プッシュ
@@ -71,11 +97,17 @@ jobs:
           git add data/fishing_data.csv
           git add data/fishing_integrated.csv
           git add data/fishing_muroto_v1.csv
+          git add data/muroto_offshore_current_all.csv
+          git add data/analysis/analysis_result.json
+          # 統合リポでは muroto_fishing_analysis.html が development.html / index.html
+          # の両方を兼ねる（W5-3 で統一）。analyze_engine.py は同 HTML の
+          # window.ANALYSIS_DATA 行を毎回上書きする。
+          git add muroto_fishing_analysis.html
 
           if git diff --staged --quiet; then
             echo "変更なし。コミットをスキップします。"
           else
-            git commit -m "V5.5 push同期: $(date -u +%Y-%m-%dT%H:%M:%SZ) [skip ci]"
+            git commit -m "V5.5 push同期 (V6.0+v2.1): $(date -u +%Y-%m-%dT%H:%M:%SZ) [skip ci]"
             git push
-            echo "✅ V6.0 同期完了"
+            echo "コミット＆プッシュ完了"
           fi
