@@ -85,7 +85,11 @@ jobs:
             else
               DATE_LABEL=$(date -d "yesterday" +%Y-%m-%d)
             fi
-            git commit -m "データ自動更新: ${DATE_LABEL} [skip ci]"
+            # W6-3（2026-04-19）: [skip ci] を外す。本コミットを契機に
+            # sync_after_current_update.yml を起動させ、emit_all + analyze_engine を
+            # 連鎖実行して v2.1 解析を最新化するため。
+            # （sync_after_current_update.yml 側の commit は [skip ci] 付きなので無限ループにはならない）
+            git commit -m "データ自動更新: ${DATE_LABEL}"
             git push
             echo "コミット＆プッシュ完了"
           fi

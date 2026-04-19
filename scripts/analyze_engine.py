@@ -21,14 +21,17 @@ DB2_CSV  = "data/muroto_offshore_current_all.csv"  # DB② 5地点海流
 DB3_CSV  = "data/fishing_condition_db.csv"         # DB③ 気象・潮汐
 DB3_STATION = "室戸"                           # DB③ 解析対象地点
 
-# 本番ワークフロー（2026-04-17 確定）:
-#   - index.html: 公開版（Web向け、fetch('analysis_result.json') で読み込み）
-#   - development.html: 開発版（屋外/ローカル向け、window.ANALYSIS_DATA 埋め込み）
-#   - analyze_engine.py は analysis_result.json を書き、development.html の
-#     埋め込みデータブロックも毎回最新化する。index.html は無改修で放置（手動昇格）。
-OUTPUT_JSON    = "data/analysis/analysis_result.json"   # 本番JSON（任意のフェッチ用 / ローカル限定）
-DEV_HTML       = "development.html"       # 開発版HTML（埋め込みデータ更新対象 / 屋外オフライン用）
-INDEX_HTML     = "index.html"             # 公開版HTML（埋め込みデータ更新対象 / GitHub Pages 配信用）
+# 本番ワークフロー（2026-04-17 確定 → W6-3 / 2026-04-19 で統合リポ向けに更新）:
+#   - 統合リポ fishing-system では development.html / index.html は廃止され、
+#     `muroto_fishing_analysis.html` 1ファイルに統合済（W5-3 で統一）。
+#   - analyze_engine.py は analysis_result.json を書き、同 HTML の
+#     window.ANALYSIS_DATA 埋め込みブロックを毎回最新化する。
+#   - 後方互換のため DEV_HTML / INDEX_HTML が共に存在しても同 HTML を指す。
+#     旧スタンドアロン構成（development.html / index.html）が併存する環境では
+#     ファイル存在チェックで安全にスキップする。
+OUTPUT_JSON    = "data/analysis/analysis_result.json"   # 本番JSON（fetch 用 / CI 出力）
+DEV_HTML       = "muroto_fishing_analysis.html"  # v2.1 解析ソフト本体（埋め込みデータ更新対象）
+INDEX_HTML     = "muroto_fishing_analysis.html"  # 同一ファイル（旧 INDEX_HTML 互換シム）
 
 # ─── 解析対象の数値カラム（DB①） ──────────────────────────
 NUMERIC_COLS = [
@@ -541,11 +544,17 @@ def update_embedded_analysis_data(html_path, result_obj):
 
 # ─── メイン ───────────────────────────────────────────────
 def main():
-    base = os.path.dirname(os.path.abspath(__file__))
+    # W6-3（2026-04-19）で base をリポジトリルートに変更。
+    # 旧仕様（base = scripts/ ディレクトリ）はスタンドアロン scripts/data/* を期待していたが、
+    # 統合リポでは data/ がリポジトリ直下に集約されているため、scripts/ の親を基点にする。
+    # CI（GitHub Actions）でも、`python scripts/analyze_engine.py` で repo_root を解決できる。
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     db1_path  = os.path.join(base, DB1_CSV)
     db2_path  = os.path.join(base, DB2_CSV)
     db3_path  = os.path.join(base, DB3_CSV)
     out_json  = os.path.join(base, OUTPUT_JSON)
+    # 出力ディレクトリ（data/analysis/）が存在しない場合は作成（CI 初回実行対応）
+    os.makedirs(os.path.dirname(out_json), exist_ok=True)
 
     print("=" * 50)
     print("  室戸沖 釣果データ解析エンジン v2.0")
@@ -653,25 +662,24 @@ def main():
         json.dump(result, f, ensure_ascii=False, indent=2, default=str)
     print(f"\n✅ JSON出力: {out_json}")
 
-    # development.html の埋め込みデータを最新化
-    # （ローカル/屋外で file:// から開いてもフレッシュなデータを表示するため）
-    dev_path = os.path.join(base, DEV_HTML)
-    updated = update_embedded_analysis_data(dev_path, result)
-    if updated:
-        print(f"✅ development.html 埋め込みデータ更新: {dev_path}")
-    else:
-        print(f"⚠  development.html を更新できませんでした（パス/マーカー不一致）")
-
-    # index.html（公開版／GitHub Pages 配信用）の埋め込みデータも最新化
-    # 公開版も埋め込み型（自己完結HTML）で運用するため、development.html と
-    # 同じ処理で window.ANALYSIS_DATA を毎回最新の解析結果に置換する。
-    # これにより promote_to_index.bat の手動実行忘れでも公開版が陳腐化しない。
-    index_path = os.path.join(base, INDEX_HTML)
-    updated_idx = update_embedded_analysis_data(index_path, result)
-    if updated_idx:
-        print(f"✅ index.html 埋め込みデータ更新: {index_path}")
-    else:
-        print(f"⚠  index.html を更新できませんでした（パス/マーカー不一致）")
+    # 統合リポ（W5-3 以降）の HTML 埋込更新。
+    # DEV_HTML / INDEX_HTML が同一ファイル（muroto_fishing_analysis.html）を指す場合は
+    # 重複更新を避けるため一度だけ処理する。
+    seen: set[str] = set()
+    for label, fname in [("DEV_HTML", DEV_HTML), ("INDEX_HTML", INDEX_HTML)]:
+        path = os.path.join(base, fname)
+        if path in seen:
+            continue
+        seen.add(path)
+        if not os.path.exists(path):
+            # 旧スタンドアロン構成（development.html / index.html）が無い環境では黙って skip
+            print(f"ℹ  {label} ({fname}) は存在しないためスキップ")
+            continue
+        ok = update_embedded_analysis_data(path, result)
+        if ok:
+            print(f"✅ {label} 埋め込みデータ更新: {path}")
+        else:
+            print(f"⚠  {label} を更新できませんでした（パス/マーカー不一致）: {path}")
 
     # dashboard.html 生成は 2026-04-17 に廃止（development.html / index.html 共に埋め込み型に移行）。
     # generate_standalone_html 関数自体は将来再利用の可能性を考慮しデッドコードとして残置。
