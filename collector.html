@@ -353,7 +353,7 @@ th.chk-col,td.chk-col{width:36px;text-align:center;padding:6px 4px;}
       </div>
     </div>
     <div style="margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <input type="text" class="filter-in" id="filter-q" placeholder="🔍 キーワード絞り込み" oninput="renderTable()" style="width:180px;">
+      <input type="search" class="filter-in" id="filter-q" placeholder="🔍 キーワード絞り込み" oninput="renderTable()" style="width:180px;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="filter-q-fishing-v55">
       <select class="species-sel" id="species-filter" onchange="renderTable()"><option value="">🐟 全魚種</option></select>
       <button class="btn-sel-none" onclick="resetSort()" title="ソートをリセット">↺ 並順リセット</button>
     </div>
@@ -393,6 +393,7 @@ th.chk-col,td.chk-col{width:36px;text-align:center;padding:6px 4px;}
     <div style="margin-bottom:10px;">
       <label style="font-size:10px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px;">Personal Access Token</label>
       <input type="password" id="gh-token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+        autocomplete="new-password" data-lpignore="true" data-form-type="other" name="fishing_v55_gh_pat_not_a_password"
         style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:monospace;outline:none;">
     </div>
     <div style="font-size:11px;color:var(--text3);margin-bottom:14px;line-height:1.65;">
@@ -447,11 +448,66 @@ th.chk-col,td.chk-col{width:36px;text-align:center;padding:6px 4px;}
 </div>
 
 <script>
+// ===== 26列マスタースキーマ（W6-1 で追加：master_catch.csv 直書き化）=====
+// engines/_schema.py の MASTER_COLUMNS と完全一致させること
+const MASTER_COLUMNS = [
+  'record_id','date','time','species','size_cm','weight_kg','count',
+  'bait','method','spot','spot_lat','spot_lng','nearest_station',
+  'tide','weather','temp','water_temp','wind','memo','source',
+  'canonical_spot','sea_area','entered_at',
+  'source_detail','prompt_version','confidence'
+];
+
+// source 内部小文字 → 出力タイトルケース（_schema.py SOURCE_OUTPUT_MAP と一致）
+const SOURCE_OUTPUT_MAP = {
+  'instagram': 'Instagram',
+  'manual':    'Manual',
+  'other':     'Other',
+};
+
+// source 旧表記 → 内部小文字（_schema.py SOURCE_INTERNAL_MAP と一致）
+// V5.5 UI は日本語ラベル（手動入力/アメブロ/その他）なので、ここで内部小文字に正規化
+const SOURCE_INTERNAL_MAP = {
+  'Instagram':'instagram','instagram':'instagram',
+  'Manual':'manual','manual':'manual',
+  'Other':'other','other':'other',
+  'インポート':'manual',    // V5.5 レガシー値
+  '手動入力':'manual',      // V5.5 UI dropdown 値
+  'アメブロ':'blog:ameblo', // V5.5 UI dropdown 値
+  'その他':'other',         // V5.5 UI dropdown 値
+};
+
+function normalizeSourceInternal(v){
+  if(!v) return 'manual';
+  if(SOURCE_INTERNAL_MAP[v]) return SOURCE_INTERNAL_MAP[v];
+  // blog: / import: / ocr: プレフィックスはそのまま小文字化
+  return String(v).toLowerCase();
+}
+
+function restoreSourceCase(v){
+  if(!v) return '';
+  if(SOURCE_OUTPUT_MAP[v]) return SOURCE_OUTPUT_MAP[v];
+  // プレフィックス系は先頭大文字化
+  for(const p of ['blog:','import:','ocr:']){
+    if(v.startsWith(p)) return p.charAt(0).toUpperCase()+p.slice(1)+v.slice(p.length);
+  }
+  return v;
+}
+
+// JST タイムスタンプ生成（ISO8601 +09:00）
+function jstISOString(){
+  const d = new Date();
+  const jst = new Date(d.getTime() + 9*60*60*1000);
+  return jst.toISOString().replace('Z','+09:00');
+}
+
 const KEY='fishing_v2';
 let records=[],selMM='',queue=[];
 function load(){try{records=JSON.parse(localStorage.getItem(KEY))||[];}catch{records=[];}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(records));}catch(e){}refreshCount();}
 load();
+// W6-1：レガシー19列レコードを 26列形式に補完（起動時1回）
+migrateLegacyRecords();
 function pad(n){return String(n).padStart(2,'0');}
 let _idCounter=0;
 function genId(){return Date.now()*1000+(_idCounter++%1000);}
@@ -488,19 +544,43 @@ function findNearestStation(lat,lng){
   return minDist<=MAX_DIST_KM?nearest:null;
 }
 
-// ===== レコード生成ファクトリ =====
+// ===== レコード生成ファクトリ（W6-1：26列対応）=====
 function makeRecord(src,source){
   const lat=toNum(src.spot_lat),lng=toNum(src.spot_lng);
   const ns=src.nearest_station||findNearestStation(lat,lng)||'';
+  // record_id: 既存値があれば保持（CSV読込・編集時）、なければUUID v4 新規発行
+  const recordId = src.record_id || (typeof crypto!=='undefined' && crypto.randomUUID ? crypto.randomUUID() : _fallbackUUID());
+  // entered_at: 既存値があれば保持、なければJST現在時刻
+  const enteredAt = src.entered_at || jstISOString();
+  // source: 内部小文字化（master_catch.csv は小文字保持）
+  const srcNorm = normalizeSourceInternal(source||src.source||'manual');
   return{
-    id:genId(),date:src.date||'',time:src.time||'',species:src.species||'',
+    // id は内部UI用に残す（既存の描画処理との互換性維持）
+    id: src.id || genId(),
+    record_id: recordId,
+    date:src.date||'',time:src.time||'',species:src.species||'',
     size_cm:toNum(src.size_cm),weight_kg:toNum(src.weight_kg),
     count:parseInt(src.count)||1,bait:src.bait||'',method:src.method||'',
     spot:src.spot||'',spot_lat:lat,spot_lng:lng,nearest_station:ns,
     tide:src.tide||'',weather:src.weather||'',temp:toNum(src.temp),
     water_temp:toNum(src.water_temp),wind:toNum(src.wind),memo:src.memo||'',
-    source:source||src.source||'インポート',entered_at:new Date().toISOString(),
+    source: srcNorm,
+    // 新7列（W6-1 で追加）
+    canonical_spot: src.canonical_spot || '',
+    sea_area:       src.sea_area || '',
+    entered_at:     enteredAt,
+    source_detail:  src.source_detail || '',
+    prompt_version: src.prompt_version || '',
+    confidence:     src.confidence || '',
   };
+}
+
+// crypto.randomUUID が使えない旧ブラウザ向けフォールバック
+function _fallbackUUID(){
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+    const r=Math.random()*16|0, v=c==='x'?r:(r&0x3|0x8);
+    return v.toString(16);
+  });
 }
 
 function getFilteredList(){
@@ -872,9 +952,15 @@ function deleteSelected(){
   persist();renderTable();updateStats();toast(`✓ ${n}件を削除しました`);
 }
 
+// W6-1：source は内部小文字保持なので、バッジ表示では日本語/英字に戻す
 function srcBadge(s){
-  if(!s)return '';const cls=s==='Instagram'?'src-ig':s==='手動入力'?'src-m':s==='アメブロ'?'src-a':'';
-  return `<span class="src-badge ${cls}">${s}</span>`;
+  if(!s)return '';
+  const norm = normalizeSourceInternal(s);
+  // 内部値 → バッジ表示用ラベル
+  const labelMap = { 'instagram':'Instagram', 'manual':'手動入力', 'blog:ameblo':'アメブロ', 'other':'その他' };
+  const display = labelMap[norm] || (norm.startsWith('blog:') ? 'ブログ' : norm);
+  const cls = norm==='instagram'?'src-ig':norm==='manual'?'src-m':(norm==='blog:ameblo'||norm.startsWith('blog:'))?'src-a':'';
+  return `<span class="src-badge ${cls}">${display}</span>`;
 }
 
 function renderTable(){
@@ -964,12 +1050,14 @@ function saveCloneAndMore(){
 }
 
 function updateStats(){
+  // W6-1：source は内部小文字保持なので、比較値も小文字化
   const speciesSet=new Set();let maxSize=0,maxWeight=0,igCount=0,manCount=0,geocoded=0;
   records.forEach(r=>{
     if(r.species)speciesSet.add(r.species);
     if(r.size_cm>0&&r.size_cm>maxSize)maxSize=r.size_cm;
     if(r.weight_kg>0&&r.weight_kg>maxWeight)maxWeight=r.weight_kg;
-    if(r.source==='Instagram')igCount++;if(r.source==='手動入力')manCount++;
+    const srcNorm = normalizeSourceInternal(r.source);
+    if(srcNorm==='instagram')igCount++;if(srcNorm==='manual')manCount++;
     if(r.spot_lat!==''&&r.spot_lat!=null)geocoded++;
   });
   document.getElementById('s-count').textContent=records.length;
@@ -980,19 +1068,29 @@ function updateStats(){
   document.getElementById('s-ig').textContent=igCount;document.getElementById('s-man').textContent=manCount;
 }
 
-// ===== CSV 生成（exportCSV / GitHub共通）=====
+// ===== CSV 生成（exportCSV / GitHub共通、W6-1：26列 + CRLF + UTF-8 BOM）=====
 function generateCSVContent(){
-  const header='date,time,species,size_cm,weight_kg,count,bait,method,spot,spot_lat,spot_lng,nearest_station,tide,weather,temp,water_temp,wind,memo,source';
-  const rows=records.map(r=>[
-    r.date,r.time,r.species,r.size_cm,r.weight_kg,r.count,
-    r.bait,r.method,'"'+(r.spot||'').replace(/"/g,'""')+'"',
-    r.spot_lat!==''&&r.spot_lat!=null?r.spot_lat:'',
-    r.spot_lng!==''&&r.spot_lng!=null?r.spot_lng:'',
-    '"'+(r.nearest_station||'').replace(/"/g,'""')+'"',
-    r.tide,r.weather,r.temp,r.water_temp,r.wind,
-    '"'+(r.memo||'').replace(/"/g,'""')+'"',r.source
-  ].join(','));
-  return '\uFEFF'+header+'\n'+rows.join('\n');
+  // CSV値エスケープ（カンマ・改行・ダブルクォートを含む値を "..." で囲み、内部 " は "" にエスケープ）
+  function csvEsc(v){
+    if(v==null) return '';
+    const s = String(v);
+    if(/[",\n\r]/.test(s)){
+      return '"'+s.replace(/"/g,'""')+'"';
+    }
+    return s;
+  }
+  const header = MASTER_COLUMNS.join(',');
+  const rows = records.map(r=>MASTER_COLUMNS.map(col=>{
+    let v = r[col];
+    if(col==='source'){
+      // master_catch.csv は内部小文字保持（emit_* 系と揃える）
+      v = normalizeSourceInternal(v);
+    }
+    if(v==='' || v==null) return '';
+    return csvEsc(v);
+  }).join(','));
+  // UTF-8 BOM + CRLF 改行 + 末尾改行（emit_fishing_data.py の出力規約と統一）
+  return '\uFEFF'+header+'\r\n'+rows.join('\r\n')+'\r\n';
 }
 
 function exportCSV(){
@@ -1009,7 +1107,7 @@ function exportCSV(){
 // ===== GitHub API 直接アップロード =====
 const GH_OWNER='supergonti';
 const GH_REPO='fishing-system';
-const GH_FILE='data/fishing_data.csv';
+const GH_FILE='data/master_catch.csv';  // W6-1: master_catch.csv 直書き化
 const GH_TOKEN_KEY='fishing_gh_token';
 
 // UTF-8対応 Base64エンコード
@@ -1020,6 +1118,7 @@ function toBase64UTF8(str){
   return btoa(bin);
 }
 
+// W6-1：master_catch.csv へ直書きするためにマージ＋PUT ロジックに刷新
 async function uploadToGitHub(){
   if(!records.length){toast('データがありません');return;}
   const token=localStorage.getItem(GH_TOKEN_KEY);
@@ -1032,14 +1131,11 @@ async function uploadToGitHub(){
   if(btn){btn.disabled=true;btn.textContent='📤 アップロード中...';}
   const apiBase=`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_FILE}`;
   try{
-    // ① 現在のファイルの SHA を取得（認証テストも兼ねる）
-    let sha=null;
+    // ① 現在の master_catch.csv を取得（SHA + 内容）
+    let sha=null, masterRecords=[];
     const getRes=await fetch(apiBase,{
       method:'GET',
-      headers:{
-        'Authorization':'token '+token,
-        'Accept':'application/vnd.github.v3+json'
-      }
+      headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}
     });
     if(getRes.status===401||getRes.status===403){
       const errBody=await getRes.text().catch(()=>'');
@@ -1051,8 +1147,15 @@ async function uploadToGitHub(){
     if(getRes.ok){
       const data=await getRes.json();
       sha=data.sha;
+      // Base64 デコード（改行除去 → ASCII バイト列復元 → UTF-8 デコード）
+      const b64 = (data.content||'').replace(/\n/g,'');
+      const binStr = atob(b64);
+      const bytes = new Uint8Array(binStr.length);
+      for(let i=0;i<binStr.length;i++) bytes[i] = binStr.charCodeAt(i);
+      const decoded = new TextDecoder('utf-8').decode(bytes);
+      masterRecords = parseCSVText(decoded);
     } else if(getRes.status===404){
-      // ファイルがまだ存在しない → 新規作成
+      // ファイル未作成 → 新規作成扱い
       sha=null;
     } else {
       const errBody=await getRes.text().catch(()=>'');
@@ -1060,13 +1163,27 @@ async function uploadToGitHub(){
       return;
     }
 
-    // ② CSV を Base64 エンコードしてアップロード
-    const csv=generateCSVContent();
-    const content=toBase64UTF8(csv);
-    const today=new Date().toISOString().slice(0,10);
-    const body={
-      message:'釣果データ更新 '+today+' ('+records.length+'件)',
-      content:content
+    // ② マージ：master 既存 UUID 保護
+    const mergeResult = mergeWithMaster(records, masterRecords);
+    if(mergeResult.deletions.length > 0){
+      const examples = mergeResult.deletions.slice(0,3).map(r=>`${r.date} ${r.species}`).join(' / ');
+      const confirmMsg = `⚠ master_catch.csv に存在し、V5.5 ローカルに無いレコードが ${mergeResult.deletions.length} 件あります。\n\nこれらを削除して push しますか？\n\n例：${examples}`;
+      if(!confirm(confirmMsg)){
+        toast('Push をキャンセルしました');
+        return;
+      }
+    }
+    // ローカル records を merge 結果で更新（UUID と entered_at が反映される）
+    records = mergeResult.merged;
+    persist();
+
+    // ③ 26列 CSV を生成して PUT
+    const csv = generateCSVContent();
+    const content = toBase64UTF8(csv);
+    const today = new Date().toISOString().slice(0,10);
+    const body = {
+      message: `釣果データ更新 ${today} (${records.length}件)`,
+      content: content,
     };
     if(sha){body.sha=sha;}
     const putRes=await fetch(apiBase,{
@@ -1084,12 +1201,13 @@ async function uploadToGitHub(){
 
     if(putRes.ok||putRes.status===200||putRes.status===201){
       const commitSha=(putData.commit&&putData.commit.sha?putData.commit.sha:'').slice(0,7);
-      alert('✅ GitHub保存成功！\n\nファイル: '+GH_FILE+'\nレコード数: '+records.length+'件\nCommit SHA: '+commitSha+'\n\nGitHubリポジトリで確認してください。');
-      toast('✓ GitHub保存完了（'+records.length+'件）commit:'+commitSha);
+      const msg = `✅ master_catch.csv 保存成功\n\nレコード数: ${records.length}件\n新規: ${mergeResult.newCount}件 / 既存: ${mergeResult.keptCount}件 / 削除: ${mergeResult.deletions.length}件\nCommit: ${commitSha}`;
+      alert(msg);
+      toast(`✓ GitHub保存完了（${records.length}件）commit:${commitSha}`);
     } else if(putRes.status===409){
-      alert('⚠ 競合エラー (HTTP 409)\n\nファイルが他で更新されました。もう一度お試しください。\n\n詳細: '+putText);
+      alert('⚠ 競合エラー (HTTP 409)\n\nファイルが他で更新されました。リロード後にもう一度お試しください。\n\n詳細: '+putText);
     } else if(putRes.status===422){
-      alert('⚠ GitHub API エラー (HTTP 422)\n\nファイル内容が同一か、SHAが不正です。\n\n詳細: '+putText);
+      alert('⚠ GitHub API エラー (HTTP 422)\n\nファイル内容が同一か、SHA が不正です。\n\n詳細: '+putText.slice(0,500));
     } else if(putRes.status===401||putRes.status===403){
       localStorage.removeItem(GH_TOKEN_KEY);
       alert('⚠ GitHub認証エラー (HTTP '+putRes.status+')\n\nトークンの権限が不足しています。\npublic_repo スコープが必要です。\n\n詳細: '+putText);
@@ -1153,6 +1271,7 @@ function clearGHToken(){
   toast('GitHub トークンを削除しました');
 }
 
+// W6-1：26列対応の CSV インポート
 function importCSV(e){
   const file=e.target.files[0];if(!file)return;
   const reader=new FileReader();
@@ -1160,31 +1279,46 @@ function importCSV(e){
     const text=ev.target.result.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
     const lines=text.split('\n').filter(l=>l.trim());
     if(lines.length<2){toast('データが見つかりません');return;}
+    // 26列CSVのヘッダーは小文字で固定なので toLowerCase は安全。19列レガシーCSVも互換受け入れ
     const headers=lines[0].split(',').map(h=>h.trim().toLowerCase());
     let added=0;
     for(let i=1;i<lines.length;i++){
       const vals=parseCSVLine(lines[i]);const obj={};
-      headers.forEach((h,idx)=>{obj[h]=(vals[idx]||'').replace(/^"|"$/g,'');});
+      headers.forEach((h,idx)=>{obj[h]=vals[idx]||'';});
       const r=makeRecord({
-        date:obj.date,time:obj.time,species:obj.species,size_cm:obj.size_cm,weight_kg:obj.weight_kg,
-        count:obj.count,bait:obj.bait,method:obj.method,spot:obj.spot,
-        spot_lat:obj.spot_lat,spot_lng:obj.spot_lng,nearest_station:obj.nearest_station,
-        tide:obj.tide,weather:obj.weather,temp:obj.temp,water_temp:obj.water_temp,
-        wind:obj.wind,memo:obj.memo,source:obj.source,
-      },obj.source||'インポート');
-      if(r.species){records.push(r);added++;}
+        record_id:obj.record_id, date:obj.date, time:obj.time, species:obj.species,
+        size_cm:obj.size_cm, weight_kg:obj.weight_kg, count:obj.count,
+        bait:obj.bait, method:obj.method, spot:obj.spot,
+        spot_lat:obj.spot_lat, spot_lng:obj.spot_lng, nearest_station:obj.nearest_station,
+        tide:obj.tide, weather:obj.weather, temp:obj.temp, water_temp:obj.water_temp,
+        wind:obj.wind, memo:obj.memo, source:obj.source,
+        canonical_spot:obj.canonical_spot, sea_area:obj.sea_area, entered_at:obj.entered_at,
+        source_detail:obj.source_detail, prompt_version:obj.prompt_version, confidence:obj.confidence,
+      }, obj.source);
+      if(r.species||r.date){records.push(r);added++;}
     }
     persist();renderTable();updateStats();toast(`✓ ${added}件を読み込みました`);
   };
   reader.readAsText(file,'UTF-8');e.target.value='';
 }
 
+// W6-1：ダブルクォート処理を強化（"" エスケープ対応 / 前後空白を保持）
 function parseCSVLine(line){
   const result=[];let cur='',inQ=false;
   for(let i=0;i<line.length;i++){
-    const c=line[i];if(c==='"'){inQ=!inQ;}else if(c===','&&!inQ){result.push(cur.trim());cur='';}else{cur+=c;}
+    const c=line[i];
+    if(inQ){
+      if(c==='"' && line[i+1]==='"'){ cur+='"'; i++; }   // エスケープされた "
+      else if(c==='"'){ inQ=false; }                       // クォート終了
+      else { cur+=c; }
+    } else {
+      if(c==='"'){ inQ=true; }
+      else if(c===','){ result.push(cur); cur=''; }
+      else { cur+=c; }
+    }
   }
-  result.push(cur.trim());return result;
+  result.push(cur);
+  return result;
 }
 
 function clearAll(){
@@ -1212,22 +1346,101 @@ function refreshCount(){
   const mini=document.getElementById('list-count-mini');if(mini)mini.textContent=records.length+'件';
 }
 
-const CSV_URL='data/fishing_data.csv',CSV_FP_KEY='fishing_csv_fp';
+// W6-1: master_catch.csv をソース・オブ・トゥルースとして読み込む。CSV_FP_KEY は _v2 化して旧キャッシュを破棄
+const CSV_URL='data/master_catch.csv',CSV_FP_KEY='fishing_csv_fp_v2';
 
+// W6-1：record_id を fingerprint に含めて UUID 変化も検知できるよう拡張
 function csvFingerprint(recs){
   if(!recs.length)return '0';const n=recs.length;const f=recs[0],l=recs[n-1];
-  return `${n}:${f.date}:${f.species}:${f.size_cm}:${f.weight_kg}:${l.date}:${l.species}:${l.size_cm}:${l.weight_kg}`;
+  return `${n}:${f.record_id||''}:${f.date}:${f.species}:${f.size_cm}:${f.weight_kg}:${l.record_id||''}:${l.date}:${l.species}:${l.size_cm}:${l.weight_kg}`;
 }
 
+// ===== W6-1：UUID 保護マージ関数 =====
+// V5.5 ローカル records と GitHub master_catch.csv をマージし、
+// 既存 UUID を 100% 保護した最終 records 配列を返す
+function mergeWithMaster(localRecs, masterRecs){
+  // master 側を record_id でインデックス化
+  const masterById = {};
+  masterRecs.forEach(r => { if(r.record_id) masterById[r.record_id] = r; });
+
+  // 一致候補検出のための複合キー（record_id 不一致時のフォールバック）
+  function compoundKey(r){
+    return [r.date,r.species,r.size_cm,r.weight_kg,r.spot,r.time].join('|');
+  }
+  const masterByCompound = {};
+  masterRecs.forEach(r => { masterByCompound[compoundKey(r)] = r; });
+
+  let newCount=0, keptCount=0;
+  const merged = localRecs.map(local => {
+    // ① ローカルに record_id があり、master にも同じ UUID が存在する場合 → 既存扱い
+    if(local.record_id && masterById[local.record_id]){
+      keptCount++;
+      // entered_at は master 側を優先（最初の登録時刻を維持）
+      const master = masterById[local.record_id];
+      return {...local, entered_at: master.entered_at || local.entered_at};
+    }
+    // ② record_id 未割当 or master に該当 UUID なし → 複合キーで照合
+    const matched = masterByCompound[compoundKey(local)];
+    if(matched){
+      // 複合キー一致＝既存レコードを再発見した → master の UUID と entered_at を採用
+      keptCount++;
+      return {...local, record_id: matched.record_id, entered_at: matched.entered_at};
+    }
+    // ③ 完全新規 → ローカルで発行済みの UUID をそのまま使う
+    newCount++;
+    return local;
+  });
+
+  // master にあって local にない＝削除候補
+  const localIds = new Set(merged.map(r=>r.record_id));
+  const localCompound = new Set(merged.map(compoundKey));
+  const deletions = masterRecs.filter(m =>
+    !localIds.has(m.record_id) && !localCompound.has(compoundKey(m))
+  );
+
+  return { merged, newCount, keptCount, deletions };
+}
+
+// ===== W6-1：localStorage マイグレーション =====
+// 旧19列レコードに record_id / entered_at / 新7列を補充
+function migrateLegacyRecords(){
+  let migrated = 0;
+  records.forEach(r => {
+    if(!r.record_id){
+      r.record_id = (typeof crypto!=='undefined' && crypto.randomUUID) ? crypto.randomUUID() : _fallbackUUID();
+      migrated++;
+    }
+    if(!r.entered_at){
+      r.entered_at = jstISOString();
+    }
+    if(!('canonical_spot' in r)) r.canonical_spot = '';
+    if(!('sea_area' in r))       r.sea_area = '';
+    if(!('source_detail' in r))  r.source_detail = '';
+    if(!('prompt_version' in r)) r.prompt_version = '';
+    if(!('confidence' in r))     r.confidence = '';
+    // source を内部小文字化
+    if(r.source) r.source = normalizeSourceInternal(r.source);
+  });
+  if(migrated > 0){
+    try{persist();}catch(e){}
+    console.log(`[W6-1] Migrated ${migrated} legacy records (added record_id)`);
+  }
+}
+
+// W6-1：master_catch.csv（26列）と旧 fishing_data.csv（19列）の両方を読める
 function parseCSVText(text){
   const cleaned=text.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
   const lines=cleaned.split('\n').filter(l=>l.trim());if(lines.length<2)return [];
+  // ヘッダーは小文字化（master_catch.csv 列名はもともと小文字）
   const headers=lines[0].split(',').map(h=>h.trim().toLowerCase());
   const result=[];
   for(let i=1;i<lines.length;i++){
     const vals=parseCSVLine(lines[i]);const obj={};
-    headers.forEach((h,idx)=>{obj[h]=(vals[idx]||'').replace(/^"|"$/g,'');});
-    if(obj.species)result.push(makeRecord(obj,obj.source||'インポート'));
+    headers.forEach((h,idx)=>{obj[h]=vals[idx]||'';});
+    // 19列レガシーCSV（record_id 列なし）も受け入れる
+    if(obj.species||obj.date){
+      result.push(makeRecord(obj,obj.source));
+    }
   }
   return result;
 }
