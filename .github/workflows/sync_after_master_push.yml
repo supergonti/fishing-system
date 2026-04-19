@@ -1,0 +1,81 @@
+name: V5.5 push後 V6.0 自動同期 / Sync V6.0 after master_catch push
+
+# W6-2（2026-04-19）で新設。
+# V5.5 から data/master_catch.csv が push されたら、不足日付の気象データを
+# Open-Meteo から取得して fishing_condition_db.csv に追記し、emit_all で派生
+# CSV3本（fishing_data / fishing_muroto_v1 / fishing_integrated）を再生成して
+# まとめて [skip ci] 付きで commit & push する。
+#
+# 関連:
+#   - scripts/sync_condition_db.py（新設, W6-2）
+#   - engines/emit_all.py（W4-1 で実装）
+#   - 旧 build-and-deploy.yml は本ファイルにより置換され削除済み
+
+on:
+  push:
+    paths:
+      - 'data/master_catch.csv'
+    branches:
+      - main
+  workflow_dispatch:  # 手動実行も可
+
+# 同時実行を直列化（race condition 防止）
+concurrency:
+  group: sync-after-master-push
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Python 3.11 セットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 依存パッケージをインストール
+        run: pip install -r requirements.txt
+
+      # --- Step A: 気象データの不足日付を Open-Meteo から差分取得 ---
+      # 失敗時は exit 1 で Actions を停止（master_catch だけ push された状態で止まる）
+      - name: 気象データ差分取得 (sync_condition_db.py)
+        run: |
+          python scripts/sync_condition_db.py \
+            --master    data/master_catch.csv \
+            --condition data/fishing_condition_db.csv
+
+      # --- Step B: emit_all で派生CSV群を再生成 ---
+      - name: emit_all で派生CSV群を再生成
+        run: |
+          python -m engines.emit_all \
+            --master  data/master_catch.csv \
+            --c3      data/fishing_condition_db.csv \
+            --c4      data/muroto_offshore_current_all.csv \
+            --out-dir data
+
+      # --- Step C: 変更があれば commit & push（[skip ci] 付き） ---
+      - name: コミット＆プッシュ
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add data/fishing_condition_db.csv
+          git add data/fishing_data.csv
+          git add data/fishing_integrated.csv
+          git add data/fishing_muroto_v1.csv
+
+          if git diff --staged --quiet; then
+            echo "変更なし。コミットをスキップします。"
+          else
+            git commit -m "V5.5 push同期: $(date -u +%Y-%m-%dT%H:%M:%SZ) [skip ci]"
+            git push
+            echo "✅ V6.0 同期完了"
+          fi

@@ -1,8 +1,14 @@
-name: Rebuild master & verify golden
+name: 週次 整合性検査 / Weekly integrity verification
 
 # W3-2 §4.3 / W3-3 §9.4 準拠
-# 週次でマスター整合性（ゴールデン比較）を検査する。
-# W5-1 でゴールデンが採取されるまで失敗するのは想定内。
+# W6-2（2026-04-19）役割再定義:
+#   本ワークフローは「整合性検査専用」。
+#   日々の派生CSV再生成は sync_after_master_push.yml が push トリガーで担う。
+#   ここでは週次で次の3点を検査する非破壊ジョブとして純化:
+#     1. emit_all を `--out-dir .ci_out` に書く（data/ は触らない）
+#     2. tests/golden_match_test.py で .ci_out 出力を golden（W5-1採取）と比較
+#     3. validate_all.py で破損検査
+#   失敗時は .ci_out をアーティファクト化してローカル再現を支援する。
 
 on:
   schedule:
