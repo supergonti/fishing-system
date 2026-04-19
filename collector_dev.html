@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>釣果データ収集ソフト V5.5</title>
+<link rel="icon" type="image/svg+xml" href="./favicon.svg">
+<link rel="alternate icon" href="./favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f7f4ee;--bg2:#ede8de;--bg3:#e2ddd2;--surface:#fff;
+  --gold:#b8963e;--gold2:#d4b04a;--sea:#0d2240;--sea2:#1a4060;
+  --red:#c0392b;--green:#27ae60;--purple:#6c3483;
+  --text:#1a1410;--text2:#4a3f30;--text3:#8a7a68;
+  --border:#c8b898;--border2:#ddd0b8;--r:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);font-family:'Noto Sans JP',sans-serif;color:var(--text);min-height:100vh;}
+.header{background:var(--sea);padding:14px 24px;display:flex;align-items:center;gap:16px;border-bottom:3px solid var(--gold);}
+.header-title{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:4px;color:var(--gold);}
+.header-sub{font-size:11px;color:rgba(255,255,255,0.4);letter-spacing:1px;margin-top:1px;}
+.header-count{margin-left:auto;background:rgba(184,150,62,0.2);border:1px solid rgba(184,150,62,0.35);border-radius:20px;padding:5px 16px;font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);letter-spacing:2px;}
+.tab-nav{display:flex;background:var(--sea2);border-bottom:2px solid var(--gold);}
+.tab-btn{padding:11px 24px;background:none;border:none;color:rgba(255,255,255,0.4);font-family:'Noto Sans JP',sans-serif;font-size:13px;cursor:pointer;letter-spacing:1px;transition:all .2s;border-bottom:2px solid transparent;margin-bottom:-2px;}
+.tab-btn.active{color:var(--gold);border-bottom-color:var(--gold);background:rgba(184,150,62,0.08);}
+.tab-btn:hover:not(.active){color:rgba(255,255,255,0.7);}
+.tab-content{display:none;}.tab-content.active{display:block;}
+.layout{display:grid;grid-template-columns:400px 1fr;min-height:calc(100vh - 100px);}
+.panel-left{background:var(--bg2);border-right:1px solid var(--border2);padding:18px;overflow-y:auto;max-height:calc(100vh - 100px);}
+.panel-right{padding:18px;overflow-y:auto;max-height:calc(100vh - 100px);}
+.sec{font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:3px;color:var(--gold);margin-bottom:10px;padding-bottom:5px;border-bottom:1px solid var(--border2);}
+.step-box{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:14px;margin-bottom:12px;position:relative;}
+.step-box::before{content:attr(data-step);position:absolute;top:-10px;left:12px;background:var(--gold);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:2px;padding:1px 10px;border-radius:10px;}
+.step-note{font-size:12px;color:var(--text3);margin-bottom:8px;line-height:1.65;}
+.prompt-box{background:var(--sea);border-radius:6px;padding:10px 12px;font-size:11.5px;color:rgba(255,255,255,0.65);line-height:1.75;cursor:pointer;position:relative;margin-bottom:6px;font-family:monospace;transition:background .2s;border:1px solid rgba(184,150,62,0.2);max-height:110px;overflow-y:auto;}
+.prompt-box:hover{background:#122a50;}
+.copy-badge{position:absolute;top:6px;right:8px;font-size:10px;color:var(--gold2);font-family:'Noto Sans JP',sans-serif;}
+.prompt-box b{color:var(--gold2);}
+.json-zone{background:var(--sea);border:2px dashed rgba(184,150,62,0.4);border-radius:var(--r);padding:12px;margin-bottom:10px;transition:border-color .2s;}
+.json-zone:focus-within{border-color:var(--gold);}
+.json-label{font-size:10px;letter-spacing:2px;color:var(--gold2);margin-bottom:6px;font-family:'Bebas Neue',sans-serif;display:flex;align-items:center;gap:6px;}
+.json-label::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--gold2);}
+.json-ta{width:100%;background:rgba(255,255,255,0.05);border:none;border-radius:4px;color:rgba(255,255,255,0.8);font-family:monospace;font-size:11px;padding:8px;min-height:80px;outline:none;resize:vertical;}
+.json-ta::placeholder{color:rgba(255,255,255,0.2);}
+.parse-result{background:rgba(184,150,62,0.08);border:1px solid rgba(184,150,62,0.2);border-radius:6px;padding:10px;margin-top:8px;font-size:12px;display:none;}
+.parse-result.show{display:block;}
+.parse-ok{color:var(--green);}.parse-err{color:var(--red);}
+.queue-list{max-height:260px;overflow-y:auto;margin-bottom:8px;}
+.queue-item{background:var(--surface);border:2px solid var(--border2);border-radius:6px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .15s;user-select:none;}
+.queue-item:hover{border-color:var(--gold);background:rgba(184,150,62,0.03);}
+.queue-item.checked{border-color:var(--gold);background:rgba(184,150,62,0.08);}
+.queue-item.previewing{outline:2px solid var(--sea2);}
+.qi-chk{width:20px;height:20px;border:2px solid var(--border);border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s;background:var(--bg2);}
+.queue-item.checked .qi-chk{background:var(--gold);border-color:var(--gold);color:#fff;font-size:13px;}
+.qi-main{flex:1;display:flex;align-items:center;gap:8px;padding:2px 0;}
+.qi-date{font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--gold);letter-spacing:1px;min-width:90px;}
+.qi-info{flex:1;font-size:12px;color:var(--text2);}
+.qi-species{font-weight:700;color:var(--text);}
+.qi-badge{font-size:10px;padding:1px 7px;border-radius:10px;background:rgba(184,150,62,0.12);color:var(--gold);border:1px solid rgba(184,150,62,0.25);}
+.qi-detail-btn{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:11px;color:var(--text3);cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.qi-detail-btn:hover{border-color:var(--sea);color:var(--sea);}
+.queue-actions{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.btn-add-sel{background:var(--gold);color:#fff;border:none;border-radius:6px;padding:10px 0;font-family:'Noto Sans JP',sans-serif;font-size:13px;font-weight:700;cursor:pointer;flex:1;letter-spacing:1px;transition:all .15s;}
+.btn-add-sel:active{transform:scale(0.97);}
+.btn-add-sel:disabled{background:var(--border);cursor:not-allowed;opacity:0.5;}
+.sel-count{font-size:12px;color:var(--text3);white-space:nowrap;}
+.btn-sel-all{background:var(--bg3);color:var(--text3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;white-space:nowrap;}
+.btn-sel-all:hover{border-color:var(--gold);color:var(--gold);}
+.preview-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:18px;margin-bottom:10px;}
+.preview-title{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--sea);letter-spacing:2px;margin-bottom:4px;display:flex;align-items:baseline;gap:10px;}
+.preview-item{background:var(--bg2);border-radius:6px;padding:8px 12px;}
+.preview-lbl{font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;}
+.pv-input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:5px 8px;font-family:'Noto Sans JP',sans-serif;font-size:13px;color:var(--text);outline:none;transition:border-color .15s;}
+.pv-input:focus{border-color:var(--gold);}
+.pv-input.pv-species{font-size:15px;font-weight:700;}
+.pv-input.pv-big{font-size:16px;color:var(--red);}
+.pv-input.pv-gold{font-size:16px;color:var(--gold);}
+textarea.pv-input{line-height:1.5;}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.fgrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;}
+.frow{margin-bottom:8px;}
+.fl{font-size:10px;color:var(--text3);margin-bottom:3px;display:block;letter-spacing:1px;text-transform:uppercase;}
+.fi,.fs{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Noto Sans JP',sans-serif;font-size:14px;padding:8px 10px;outline:none;transition:border-color .2s;-webkit-appearance:none;}
+.fi:focus,.fs:focus{border-color:var(--gold);}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+.tag{padding:3px 9px;border-radius:20px;font-size:11px;cursor:pointer;border:1px solid var(--border);color:var(--text2);background:var(--bg2);transition:all .12s;}
+.tag:hover{border-color:var(--gold);color:var(--gold);}
+.tag.on{background:var(--gold);color:#fff;border-color:var(--gold);}
+.btn{padding:10px 16px;border:none;border-radius:6px;font-family:'Noto Sans JP',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:1px;}
+.btn:active{transform:scale(0.97);}
+.btn-add{background:var(--gold);color:#fff;width:100%;padding:12px;font-size:14px;margin-top:4px;box-shadow:0 3px 10px rgba(184,150,62,.22);}
+.btn-sub{background:var(--bg3);color:var(--text3);border:1px solid var(--border);width:100%;margin-top:6px;font-size:12px;padding:9px;}
+.btn-parse{background:var(--sea);color:var(--gold2);border:1px solid rgba(184,150,62,.35);width:100%;padding:10px;font-size:13px;letter-spacing:1px;margin-top:6px;}
+.btn-csv{background:var(--green);color:#fff;padding:10px 20px;font-size:13px;}
+.btn-import{background:var(--sea);color:var(--gold2);border:1px solid rgba(184,150,62,.3);padding:10px 16px;font-size:13px;}
+.btn-danger{background:transparent;color:var(--red);border:1px solid rgba(192,57,43,.3);padding:10px 16px;font-size:13px;}
+.btn-purple{background:var(--purple);color:#fff;padding:10px 16px;font-size:13px;}
+.filter-in{background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:8px 12px;font-family:'Noto Sans JP',sans-serif;font-size:13px;color:var(--text);outline:none;width:180px;}
+.filter-in:focus{border-color:var(--gold);}
+.stats-bar{display:flex;gap:14px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:10px 14px;margin-bottom:12px;flex-wrap:wrap;}
+.sv{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);letter-spacing:1px;line-height:1;}
+.sl{font-size:10px;color:var(--text3);margin-top:1px;letter-spacing:1px;}
+.table-wrap{overflow-x:auto;overflow-y:auto;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);height:714px;}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:1060px;}
+thead{background:var(--sea);position:sticky;top:0;z-index:10;}
+thead th{padding:9px 8px;text-align:left;font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:2px;color:rgba(240,208,112,.75);font-weight:400;white-space:nowrap;border-right:1px solid rgba(255,255,255,.05);}
+thead th:last-child{border-right:none;}
+tbody tr{border-bottom:1px solid var(--border2);}
+tbody tr:hover{background:rgba(184,150,62,.04);}
+tbody tr:last-child{border-bottom:none;}
+td{padding:8px 8px;color:var(--text2);white-space:nowrap;border-right:1px solid var(--border2);}
+td:last-child{border-right:none;}
+td.sp{font-weight:700;color:var(--text);}
+td.sz{font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--red);letter-spacing:1px;}
+td.wt{font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--gold);}
+td.dt{font-size:11px;color:var(--text3);white-space:nowrap;width:54px;min-width:54px;}
+td.ns{font-size:11px;color:var(--purple);}
+.del{background:none;border:none;cursor:pointer;color:var(--border);font-size:13px;padding:2px 6px;border-radius:4px;}
+.del:hover{color:var(--red);background:rgba(192,57,43,.08);}
+.src-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;}
+.src-ig{background:rgba(131,58,180,.1);color:#833ab4;border:1px solid rgba(131,58,180,.2);}
+.src-m{background:rgba(27,174,90,.1);color:#1aae5a;border:1px solid rgba(27,174,90,.2);}
+.src-a{background:rgba(26,130,192,.1);color:#1a82c0;border:1px solid rgba(26,130,192,.2);}
+td.chk-col,th.chk-col{width:34px;padding:6px 8px;text-align:center;border-right:1px solid var(--border2);}
+.row-chk{width:16px;height:16px;cursor:pointer;accent-color:var(--gold);}
+thead .row-chk{accent-color:var(--gold2);}
+tbody tr.dup-row{background:rgba(220,120,0,0.07);}
+.dup-icon{color:#d4700a;font-size:12px;margin-left:4px;cursor:help;}
+.empty-state{text-align:center;padding:50px 20px;color:var(--text3);}
+.empty-icon{font-size:44px;margin-bottom:10px;}
+th.chk-col,td.chk-col{width:36px;text-align:center;padding:6px 4px;}
+.bulk-bar{display:flex;align-items:center;gap:8px;background:rgba(184,150,62,0.08);border:1px solid rgba(184,150,62,0.25);border-radius:6px;padding:8px 12px;margin-bottom:10px;flex-wrap:wrap;}
+.bulk-info{font-size:13px;color:var(--text2);}
+.bulk-info b{color:var(--gold);font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;}
+.btn-del-sel{background:var(--red);color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:1px;}
+.btn-del-sel:disabled{background:var(--border);cursor:not-allowed;opacity:.5;}
+.btn-sel-none{background:var(--bg3);color:var(--text3);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:12px;cursor:pointer;}
+.dup-banner{background:rgba(192,57,43,0.07);border:1px solid rgba(192,57,43,0.3);border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:var(--red);display:none;line-height:1.7;}
+.dup-banner.show{display:block;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(18px);background:var(--gold);color:#fff;padding:10px 22px;border-radius:20px;font-size:13px;font-weight:700;opacity:0;transition:all .28s;z-index:999;pointer-events:none;white-space:nowrap;box-shadow:0 4px 16px rgba(184,150,62,.35);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.clone-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;align-items:flex-end;justify-content:center;}
+.clone-overlay.show{display:flex;}
+.clone-panel{background:var(--surface);border-radius:var(--r) var(--r) 0 0;padding:20px;width:100%;max-width:560px;max-height:85vh;overflow-y:auto;border-top:3px solid var(--gold);box-shadow:0 -8px 32px rgba(0,0,0,0.3);}
+.clone-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.clone-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:3px;color:var(--sea);}
+.clone-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--text3);padding:2px 6px;}
+.clone-src-info{background:var(--bg2);border-radius:6px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--text2);line-height:1.7;border-left:3px solid var(--gold);}
+.clone-src-info b{color:var(--text);}
+.clone-highlight{background:rgba(184,150,62,0.08);border:1px solid rgba(184,150,62,0.3);border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:11px;color:var(--text3);}
+.clone-highlight b{color:var(--gold);}
+.btn-clone-save{background:var(--gold);color:#fff;border:none;border-radius:6px;padding:12px;font-family:'Noto Sans JP',sans-serif;font-size:14px;font-weight:700;cursor:pointer;width:100%;letter-spacing:1px;margin-top:4px;}
+.btn-clone-save:active{opacity:.85;transform:scale(.98);}
+.btn-clone-more{background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:'Noto Sans JP',sans-serif;font-size:13px;cursor:pointer;width:100%;margin-top:6px;letter-spacing:1px;}
+.clone-divider{height:1px;background:#ddd0b8;margin:12px 0;}
+.btn-dup{background:none;border:1px solid var(--border);border-radius:4px;padding:3px 9px;font-size:11px;color:var(--text3);cursor:pointer;white-space:nowrap;transition:all .15s;}
+.sort-th{cursor:pointer;user-select:none;white-space:nowrap;}
+.sort-th:hover{color:var(--gold2);}
+.sort-arrow{font-size:10px;margin-left:3px;opacity:0.6;}
+.sort-th.active-sort{color:var(--gold);}
+.sort-th.active-sort .sort-arrow{opacity:1;}
+.species-sel{background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:7px 10px;font-family:"Noto Sans JP",sans-serif;font-size:13px;color:var(--text);outline:none;cursor:pointer;}
+.species-sel:focus{border-color:var(--gold);}
+.entered-dt{font-size:10px;color:var(--text3);}
+.btn-dup:hover{border-color:var(--gold);color:var(--gold);background:rgba(184,150,62,.05);}
+.list-toggle-btn{width:100%;background:var(--sea2);border:1px solid rgba(184,150,62,0.3);border-radius:6px;padding:8px 14px;color:var(--gold2);font-family:'Noto Sans JP',sans-serif;font-size:12px;cursor:pointer;text-align:left;margin-bottom:4px;letter-spacing:1px;}
+.list-toggle-btn:hover{background:#1e4d75;}
+.geocode-bar{background:rgba(108,52,131,0.08);border:1px solid rgba(108,52,131,0.3);border-radius:6px;padding:8px 14px;margin-bottom:10px;font-size:12px;color:var(--purple);display:none;}
+.geocode-bar.show{display:block;}
+.st-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;background:rgba(108,52,131,0.1);color:var(--purple);border:1px solid rgba(108,52,131,0.25);}
+@media(max-width:900px){.layout{grid-template-columns:1fr;}.panel-left{border-right:none;border-bottom:1px solid var(--border2);max-height:none;}.panel-right{max-height:none;}}
+@media(max-width:600px){.header{padding:8px 12px;}.header-title{font-size:17px;letter-spacing:2px;}.header-sub{display:none;}.tab-btn{padding:8px 10px;font-size:11px;letter-spacing:0;}.stats-bar{gap:8px;padding:7px 10px;flex-wrap:wrap;}.sv{font-size:16px;}.sl{font-size:9px;}.bulk-bar{padding:6px 8px;gap:5px;}.bulk-bar .btn{padding:6px 10px;font-size:11px;}.table-wrap{height:680px;}}
+</style>
+</head>
+<body data-fs-page="collector">
+<!-- fishing-system 共通ナビ v1 (W5-3) -->
+<nav class="fs-nav">
+  <a href="./collector.html"               data-fs="collector">釣果収集</a>
+  <a href="./condition.html"               data-fs="condition">条件分析</a>
+  <a href="./fishingdata.html"             data-fs="fishingdata">統合釣果DB</a>
+  <a href="./muroto_offshore_current.html" data-fs="muroto_current">潮流</a>
+  <a href="./muroto_fishing_analysis.html" data-fs="muroto_analysis">解析</a>
+  <a href="./muroto_fishingforecast.html"  data-fs="muroto_forecast">出船判断</a>
+</nav>
+<style>
+.fs-nav{display:flex;flex-wrap:wrap;gap:.25rem;padding:.5rem;background:#0a3d62;border-bottom:2px solid #0ea5e9;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic UI",sans-serif;box-sizing:border-box}
+.fs-nav a{color:#eef;text-decoration:none;padding:.35rem .7rem;border-radius:4px;font-size:.9rem;font-weight:500;line-height:1.2}
+.fs-nav a:hover{background:#114477}
+.fs-nav a.fs-active{background:#0ea5e9;color:#023;pointer-events:none}
+</style>
+<script>
+(function(){var cur=document.body.getAttribute('data-fs-page');
+ if(!cur)return;var a=document.querySelector('.fs-nav a[data-fs="'+cur+'"]');
+ if(a)a.classList.add('fs-active');})();
+</script>
+<div class="header">
+  <div>
+    <div class="header-title">釣果データ収集ソフト V5.5</div>
+    <div class="header-sub">緯度経度・最近傍観測地点自動マッチング / スクショ解析 / JSON自動入力 / CSV出力</div>
+  </div>
+  <div class="header-count"><span id="hcount">0</span> 件</div>
+</div>
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('list')">📋 データ一覧</button>
+  <button class="tab-btn" onclick="switchTab('analyze')">📷 解析して追加</button>
+  <button class="tab-btn" onclick="switchTab('manual')">✏️ 手動入力</button>
+</div>
+
+<!-- TAB: ANALYZE -->
+<div class="tab-content" id="tab-analyze">
+<div class="layout">
+<div class="panel-left">
+  <div class="step-box" data-step="STEP 1 — Claudeに依頼">
+    <div class="step-note">スクショをClaudeチャットに添付し、下のメッセージをコピーして送ってください。<br>
+    <span style="color:var(--green);font-size:11px;">✓ ファイル名から撮影日時を自動読み取り</span><br>
+    <span style="color:var(--purple);font-size:11px;">✓ V5.5新機能：釣り場の緯度・経度を自動推定 → 最近傍観測地点を自動セット</span></div>
+    <div style="background:var(--sea);border:1px solid rgba(184,150,62,0.3);border-radius:6px;padding:10px 12px;margin-bottom:10px;">
+      <div style="font-size:10px;letter-spacing:2px;color:var(--gold2);margin-bottom:7px;font-family:'Bebas Neue',sans-serif;">📁 スクショファイルを選択して撮影日時を自動取得</div>
+      <input type="file" id="ss-file-picker" accept="image/*" multiple style="display:none" onchange="onSSFilePick(event)">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <button onclick="document.getElementById('ss-file-picker').click()" style="background:rgba(184,150,62,0.15);border:1px solid rgba(184,150,62,0.35);color:var(--gold2);border-radius:5px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;">ファイルを選択</button>
+        <span id="ss-file-info" style="font-size:11px;color:rgba(255,255,255,0.45);">未選択</span>
+        <button onclick="resetSSDatetime()" style="background:none;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.35);border-radius:5px;padding:5px 10px;font-size:11px;cursor:pointer;">現在時刻に戻す</button>
+      </div>
+      <div id="ss-datetime-list" style="max-height:80px;overflow-y:auto;margin-top:4px;font-size:11px;color:rgba(255,255,255,0.55);line-height:1.8;border-top:1px solid rgba(184,150,62,0.15);padding-top:4px;display:none;"></div>
+    </div>
+    <div class="prompt-box" onclick="copyPrompt()">
+      <span class="copy-badge">📋 クリックでコピー</span>
+      添付したInstagramスクショを解析してください。<br><br>
+      <b>① ファイル名から撮影日時取得</b><br>
+      <b>② 画像解析</b> → 魚種・数量・サイズ・重量<br>
+      <b>③ 釣り場の緯度・経度を地名から推定</b><br>
+      <b>④ JSON配列で返答</b>（説明不要）
+    </div>
+  </div>
+  <div class="step-box" data-step="STEP 2 — JSONを貼り付け">
+    <div class="step-note">ClaudeがJSONを返したら、そのままここに貼り付けてください。</div>
+    <div class="json-zone">
+      <div class="json-label">JSON PASTE</div>
+      <textarea class="json-ta" id="json-input" placeholder='[{"date":"2026-03-24","species":"イシナギ","spot":"室戸岬沖","spot_lat":33.28,"spot_lng":134.15,...}]'></textarea>
+    </div>
+    <button class="btn btn-parse" onclick="parseJSON()">⚡ JSONを解析する</button>
+    <button class="btn btn-sub" style="margin-top:6px;" onclick="clearJSONZone()">クリア</button>
+    <div class="parse-result" id="parse-result"></div>
+    <div id="queue-wrap" style="display:none;margin-top:12px;">
+      <div class="sec" style="margin-bottom:8px;">解析済み — チェックして選択</div>
+      <div class="queue-actions">
+        <button class="btn-add-sel" id="btn-add-sel" onclick="addSelected()" disabled>＋ 選択した件をリストに追加</button>
+        <span class="sel-count" id="sel-count">0件選択</span>
+        <button class="btn-sel-all" onclick="toggleSelectAll()">全選択/解除</button>
+      </div>
+      <div class="queue-list" id="queue-list"></div>
+    </div>
+  </div>
+</div>
+<div class="panel-right">
+  <div id="preview-panel">
+    <div style="color:var(--text3);font-size:13px;text-align:center;padding:60px 20px;">← 解析済みリストの行をクリックすると<br>ここに詳細が表示されます</div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- TAB: MANUAL -->
+<div class="tab-content" id="tab-manual">
+<div style="max-width:640px;margin:0 auto;padding:24px;">
+  <div class="step-box" data-step="手動入力">
+    <div class="fgrid">
+      <div class="frow"><label class="fl">投稿日付</label><input type="date" class="fi" id="m-date"></div>
+      <div class="frow"><label class="fl">投稿時刻</label><input type="time" class="fi" id="m-time"></div>
+    </div>
+    <div class="frow">
+      <label class="fl">魚種</label>
+      <input type="text" class="fi" id="m-species" placeholder="例: カンパチ">
+      <div class="tags">
+        <span class="tag" onclick="pick('m-species',this)">カンパチ</span>
+        <span class="tag" onclick="pick('m-species',this)">クエ</span>
+        <span class="tag" onclick="pick('m-species',this)">イシナギ</span>
+        <span class="tag" onclick="pick('m-species',this)">ヒラマサ</span>
+        <span class="tag" onclick="pick('m-species',this)">ブリ</span>
+        <span class="tag" onclick="pick('m-species',this)">マグロ</span>
+      </div>
+    </div>
+    <div class="fgrid3">
+      <div class="frow"><label class="fl">サイズ cm</label><input type="number" class="fi" id="m-size" placeholder="80"></div>
+      <div class="frow"><label class="fl">重量 kg</label><input type="number" class="fi" id="m-weight" placeholder="5.5" step="0.1"></div>
+      <div class="frow"><label class="fl">本数</label><input type="number" class="fi" id="m-count" placeholder="1"></div>
+    </div>
+    <div class="frow"><label class="fl">エサ / ルアー</label><input type="text" class="fi" id="m-bait" placeholder="例: アジ 25cm"></div>
+    <div class="frow">
+      <label class="fl">釣法</label>
+      <div class="tags">
+        <span class="tag" id="mm-底物" onclick="pickMM(this,'底物泳がせ')">泳がせ（底物）</span>
+        <span class="tag" id="mm-中層" onclick="pickMM(this,'中層泳がせ')">泳がせ（中層）</span>
+        <span class="tag" id="mm-落とし込み" onclick="pickMM(this,'落とし込み')">落とし込み</span>
+        <span class="tag" id="mm-ジギング" onclick="pickMM(this,'ジギング')">ジギング</span>
+      </div>
+    </div>
+    <div class="frow"><label class="fl">ポイント</label><input type="text" class="fi" id="m-spot" placeholder="例: 沖ノ島 南礁"></div>
+    <div class="fgrid">
+      <div class="frow"><label class="fl">緯度（任意）</label><input type="number" class="fi" id="m-lat" placeholder="33.28" step="0.0001"></div>
+      <div class="frow"><label class="fl">経度（任意）</label><input type="number" class="fi" id="m-lng" placeholder="134.15" step="0.0001"></div>
+    </div>
+    <div class="fgrid3">
+      <div class="frow"><label class="fl">水温 ℃</label><input type="number" class="fi" id="m-wtemp" placeholder="24"></div>
+      <div class="frow"><label class="fl">気温 ℃</label><input type="number" class="fi" id="m-temp" placeholder="22"></div>
+      <div class="frow"><label class="fl">風速 m/s</label><input type="number" class="fi" id="m-wind" placeholder="4"></div>
+    </div>
+    <div class="fgrid">
+      <div class="frow"><label class="fl">潮回り</label><select class="fs" id="m-tide"><option value="">— 選択 —</option><option>大潮</option><option>中潮</option><option>小潮</option><option>長潮</option><option>若潮</option></select></div>
+      <div class="frow"><label class="fl">天気</label><select class="fs" id="m-weather"><option value="">— 選択 —</option><option>晴れ</option><option>曇り</option><option>雨</option><option>晴れのち曇り</option><option>荒天</option></select></div>
+    </div>
+    <div class="frow"><label class="fl">メモ</label><input type="text" class="fi" id="m-memo" placeholder="ヒットパターン・状況など"></div>
+    <div class="frow"><label class="fl">情報ソース</label><select class="fs" id="m-source"><option value="手動入力">手動入力</option><option value="Instagram">Instagram</option><option value="アメブロ">アメブロ</option><option value="その他">その他</option></select></div>
+    <button class="btn btn-add" onclick="addManual()">＋ リストに追加</button>
+  </div>
+</div>
+</div>
+
+<!-- TAB: LIST -->
+<div class="tab-content active" id="tab-list">
+<div style="padding:8px;display:flex;flex-direction:column;height:calc(100vh - 102px);overflow:hidden;">
+  <button class="list-toggle-btn" id="list-toggle-btn" onclick="toggleListPanel()">
+    <span id="list-toggle-label">▼ 統計・操作パネルを表示</span>
+    <span style="font-size:11px;color:rgba(255,255,255,0.5);margin-left:8px;" id="list-count-mini"></span>
+  </button>
+  <div id="list-collapsible" style="display:none;">
+    <div class="stats-bar" style="margin-top:6px;">
+      <div><div class="sv" id="s-count">0</div><div class="sl">件数</div></div>
+      <div><div class="sv" id="s-species">0</div><div class="sl">魚種数</div></div>
+      <div><div class="sv" id="s-max">—</div><div class="sl">最大サイズ</div></div>
+      <div><div class="sv" id="s-maxw">—</div><div class="sl">最大重量</div></div>
+      <div><div class="sv" id="s-geocoded">0</div><div class="sl">座標付与済み</div></div>
+      <div style="margin-left:auto;"><div class="sv" id="s-ig">0</div><div class="sl">Instagram</div></div>
+      <div><div class="sv" id="s-man">0</div><div class="sl">手動入力</div></div>
+    </div>
+    <div class="geocode-bar" id="geocode-bar"></div>
+    <div class="dup-banner" id="dup-banner"></div>
+    <div class="bulk-bar">
+      <div class="bulk-info"><b id="sel-row-count">0</b> 件選択中</div>
+      <button class="btn-del-sel" id="btn-del-sel" onclick="deleteSelected()" disabled>🗑 選択削除</button>
+      <button class="btn-sel-none" onclick="clearRowSelection()">選択解除</button>
+      <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-purple" onclick="startGeocoding()" title="未付与レコードに緯度経度を一括付与（Nominatim API）" style="padding:10px 12px;font-size:12px;">🌐 座標一括付与</button>
+        <button class="btn btn-import" onclick="document.getElementById('csv-imp').click()">📂 CSV読込</button>
+        <input type="file" id="csv-imp" accept=".csv" style="display:none" onchange="importCSV(event)">
+        <button class="btn btn-import" onclick="reloadCSV()" style="padding:10px 12px;font-size:12px;" title="フィンガープリントをリセットしてdata.csvを再読込">🔄 CSV再読込</button>
+        <button class="btn btn-csv" onclick="exportCSV()">📥 CSVで保存</button>
+        <button class="btn" id="btn-gh-push" onclick="uploadToGitHub()" style="background:#24292f;color:#7ee787;border:1px solid rgba(126,231,135,.35);padding:10px 14px;font-size:12px;" title="GitHub に fishing_data.csv を直接アップロード">🚀 GitHubに保存</button>
+        <button class="btn" onclick="showGHTokenModal()" style="background:#24292f;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1);padding:10px 10px;font-size:12px;" title="GitHub トークン設定">⚙</button>
+        <button class="btn btn-danger" onclick="clearAll()">全削除</button>
+      </div>
+    </div>
+    <div style="margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <input type="search" class="filter-in" id="filter-q" placeholder="🔍 キーワード絞り込み" oninput="renderTable()" style="width:180px;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="filter-q-fishing-v55">
+      <select class="species-sel" id="species-filter" onchange="renderTable()"><option value="">🐟 全魚種</option></select>
+      <button class="btn-sel-none" onclick="resetSort()" title="ソートをリセット">↺ 並順リセット</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table id="main-table" style="display:none;">
+      <thead><tr>
+        <th class="chk-col"><input type="checkbox" class="row-chk" id="chk-all" onchange="toggleAllRows(this.checked)" title="全選択"></th>
+        <th class="sort-th" onclick="setSort('date')" style="width:54px;min-width:54px;">投稿日<span class="sort-arrow" id="arr-date"></span></th>
+        <th class="sort-th" onclick="setSort('species')" style="width:80px;min-width:80px;">魚種<span class="sort-arrow" id="arr-species"></span></th>
+        <th class="sort-th" onclick="setSort('size_cm')">cm<span class="sort-arrow" id="arr-size_cm"></span></th>
+        <th class="sort-th" onclick="setSort('weight_kg')">kg<span class="sort-arrow" id="arr-weight_kg"></span></th>
+        <th>本</th><th>エサ</th><th>釣法</th><th>ポイント</th>
+        <th>最近傍地点</th>
+        <th>潮</th><th>天気</th><th>水温</th><th>気温</th><th>風</th><th>メモ</th><th>ソース</th>
+        <th class="sort-th" onclick="setSort('entered_at')">入力日時<span class="sort-arrow" id="arr-entered_at"></span></th>
+        <th style="width:48px;"></th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty-state" id="empty-state"><div class="empty-icon">🎣</div><div>まだデータがありません</div></div>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ===== GitHub トークン設定モーダル ===== -->
+<div id="gh-token-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;align-items:center;justify-content:center;" onclick="closeGHTokenModal(event)">
+  <div style="background:#fff;border-radius:10px;padding:28px;width:min(460px,92vw);box-shadow:0 8px 40px rgba(0,0,0,.4);border-top:3px solid #24292f;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:3px;color:#24292f;margin-bottom:6px;">🐙 GitHub 設定</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:16px;line-height:1.7;">
+      Personal Access Token（PAT）を設定すると「🚀 GitHubに保存」ボタンで<br>
+      <b>fishing_data.csv を直接リポジトリにプッシュ</b>できます。<br>
+      <span style="color:#c0392b;font-size:11px;">※ トークンはこのデバイスのlocalStorageに保存されます</span>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:10px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:4px;">Personal Access Token</label>
+      <input type="password" id="gh-token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+        autocomplete="new-password" data-lpignore="true" data-form-type="other" name="fishing_v55_gh_pat_not_a_password"
+        style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:monospace;outline:none;">
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:14px;line-height:1.65;">
+      トークンの取得：GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)<br>
+      必要なスコープ：<b>public_repo</b>（パブリックリポジトリの場合）
+    </div>
+    <div id="gh-token-status" style="font-size:12px;margin-bottom:12px;min-height:18px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="saveGHToken()" style="flex:1;padding:11px;background:#24292f;color:#7ee787;border:none;border-radius:6px;font-family:'Noto Sans JP',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">保存</button>
+      <button onclick="clearGHToken()" style="padding:11px 16px;background:transparent;color:var(--red);border:1px solid rgba(192,57,43,.3);border-radius:6px;font-size:12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;">削除</button>
+      <button onclick="closeGHTokenModal()" style="padding:11px 16px;background:var(--bg3);color:var(--text3);border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLONE PANEL -->
+<div class="clone-overlay" id="clone-overlay" onclick="closeClonePanel(event)">
+  <div class="clone-panel" id="clone-panel">
+    <div class="clone-header">
+      <div class="clone-title">複製して追加</div>
+      <button class="clone-close" onclick="closeClonePanel()">✕</button>
+    </div>
+    <div class="clone-src-info" id="clone-src-info"></div>
+    <div class="clone-highlight"><b>変更したい項目だけ修正</b>してください。それ以外は元データのまま複製されます。</div>
+    <div class="fgrid3">
+      <div class="frow"><label class="fl">重量 kg</label><input type="number" class="fi" id="cl-weight" step="0.1" placeholder="—"></div>
+      <div class="frow"><label class="fl">サイズ cm</label><input type="number" class="fi" id="cl-size" placeholder="—"></div>
+      <div class="frow"><label class="fl">本数</label><input type="number" class="fi" id="cl-count" placeholder="1"></div>
+    </div>
+    <div class="frow"><label class="fl">メモ（追記・修正）</label><input type="text" class="fi" id="cl-memo" placeholder="メモを修正する場合はここに入力"></div>
+    <div class="clone-divider"></div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">以下は元データを引き継ぎます（変更不要なら空白のまま）</div>
+    <div class="fgrid">
+      <div class="frow"><label class="fl">日付</label><input type="date" class="fi" id="cl-date"></div>
+      <div class="frow"><label class="fl">時刻</label><input type="time" class="fi" id="cl-time"></div>
+    </div>
+    <div class="frow"><label class="fl">魚種</label><input type="text" class="fi" id="cl-species"></div>
+    <div class="frow"><label class="fl">エサ / ルアー</label><input type="text" class="fi" id="cl-bait"></div>
+    <div class="frow"><label class="fl">ポイント</label><input type="text" class="fi" id="cl-spot"></div>
+    <div class="fgrid">
+      <div class="frow"><label class="fl">釣法</label><input type="text" class="fi" id="cl-method"></div>
+      <div class="frow"><label class="fl">潮回り</label><select class="fs" id="cl-tide"><option value="">—</option><option>大潮</option><option>中潮</option><option>小潮</option><option>長潮</option><option>若潮</option></select></div>
+    </div>
+    <div class="fgrid3">
+      <div class="frow"><label class="fl">水温 ℃</label><input type="number" class="fi" id="cl-wtemp"></div>
+      <div class="frow"><label class="fl">気温 ℃</label><input type="number" class="fi" id="cl-temp"></div>
+      <div class="frow"><label class="fl">風速 m/s</label><input type="number" class="fi" id="cl-wind"></div>
+    </div>
+    <button class="btn-clone-save" onclick="saveClone()">＋ この内容で複製追加</button>
+    <button class="btn-clone-more" onclick="saveCloneAndMore()">＋ 追加してもう1件複製</button>
+  </div>
+</div>
+
+<script>
+// ===== 26列マスタースキーマ（W6-1 で追加：master_catch.csv 直書き化）=====
+// engines/_schema.py の MASTER_COLUMNS と完全一致させること
+const MASTER_COLUMNS = [
+  'record_id','date','time','species','size_cm','weight_kg','count',
+  'bait','method','spot','spot_lat','spot_lng','nearest_station',
+  'tide','weather','temp','water_temp','wind','memo','source',
+  'canonical_spot','sea_area','entered_at',
+  'source_detail','prompt_version','confidence'
+];
+
+// source 内部小文字 → 出力タイトルケース（_schema.py SOURCE_OUTPUT_MAP と一致）
+const SOURCE_OUTPUT_MAP = {
+  'instagram': 'Instagram',
+  'manual':    'Manual',
+  'other':     'Other',
+};
+
+// source 旧表記 → 内部小文字（_schema.py SOURCE_INTERNAL_MAP と一致）
+// V5.5 UI は日本語ラベル（手動入力/アメブロ/その他）なので、ここで内部小文字に正規化
+const SOURCE_INTERNAL_MAP = {
+  'Instagram':'instagram','instagram':'instagram',
+  'Manual':'manual','manual':'manual',
+  'Other':'other','other':'other',
+  'インポート':'manual',    // V5.5 レガシー値
+  '手動入力':'manual',      // V5.5 UI dropdown 値
+  'アメブロ':'blog:ameblo', // V5.5 UI dropdown 値
+  'その他':'other',         // V5.5 UI dropdown 値
+};
+
+function normalizeSourceInternal(v){
+  if(!v) return 'manual';
+  if(SOURCE_INTERNAL_MAP[v]) return SOURCE_INTERNAL_MAP[v];
+  // blog: / import: / ocr: プレフィックスはそのまま小文字化
+  return String(v).toLowerCase();
+}
+
+function restoreSourceCase(v){
+  if(!v) return '';
+  if(SOURCE_OUTPUT_MAP[v]) return SOURCE_OUTPUT_MAP[v];
+  // プレフィックス系は先頭大文字化
+  for(const p of ['blog:','import:','ocr:']){
+    if(v.startsWith(p)) return p.charAt(0).toUpperCase()+p.slice(1)+v.slice(p.length);
+  }
+  return v;
+}
+
+// JST タイムスタンプ生成（ISO8601 +09:00）
+function jstISOString(){
+  const d = new Date();
+  const jst = new Date(d.getTime() + 9*60*60*1000);
+  return jst.toISOString().replace('Z','+09:00');
+}
+
+const KEY='fishing_v2';
+let records=[],selMM='',queue=[];
+function load(){try{records=JSON.parse(localStorage.getItem(KEY))||[];}catch{records=[];}}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(records));}catch(e){}refreshCount();}
+load();
+// W6-1：レガシー19列レコードを 26列形式に補完（起動時1回）
+migrateLegacyRecords();
+function pad(n){return String(n).padStart(2,'0');}
+let _idCounter=0;
+function genId(){return Date.now()*1000+(_idCounter++%1000);}
+function toNum(v){if(v===''||v===null||v===undefined)return '';const n=parseFloat(v);return isNaN(n)?'':n;}
+function dv(v){return(v!==''&&v!==null&&v!==undefined)?v:'—';}
+
+// ===== 観測地点マスタ（8地点 / 四国沿岸） =====
+// ※ 気象DB (fishing_condition_db.csv) と結合するため、地点名は短名で統一する
+//   （update-conditions.js / merge-data.js と同じ命名・座標）
+const STATIONS=[
+  {name:'室戸',  lat:33.29,lng:134.18},
+  {name:'高知',  lat:33.56,lng:133.54},
+  {name:'足摺',  lat:32.72,lng:132.72},
+  {name:'宇和島',lat:33.22,lng:132.56},
+  {name:'松山',  lat:33.84,lng:132.77},
+  {name:'来島',  lat:34.12,lng:132.99},
+  {name:'高松',  lat:34.35,lng:134.05},
+  {name:'阿南',  lat:33.92,lng:134.66},
+];
+const MAX_DIST_KM=300;
+
+// ===== Haversine 距離計算 =====
+function haversine(lat1,lng1,lat2,lng2){
+  const R=6371,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// ===== 最近傍観測地点（300km超はnull） =====
+function findNearestStation(lat,lng){
+  if(lat==null||lng==null||lat===''||lng==='')return null;
+  let minDist=Infinity,nearest=null;
+  STATIONS.forEach(s=>{const d=haversine(parseFloat(lat),parseFloat(lng),s.lat,s.lng);if(d<minDist){minDist=d;nearest=s.name;}});
+  return minDist<=MAX_DIST_KM?nearest:null;
+}
+
+// ===== レコード生成ファクトリ（W6-1：26列対応）=====
+function makeRecord(src,source){
+  const lat=toNum(src.spot_lat),lng=toNum(src.spot_lng);
+  const ns=src.nearest_station||findNearestStation(lat,lng)||'';
+  // record_id: 既存値があれば保持（CSV読込・編集時）、なければUUID v4 新規発行
+  const recordId = src.record_id || (typeof crypto!=='undefined' && crypto.randomUUID ? crypto.randomUUID() : _fallbackUUID());
+  // entered_at: 既存値があれば保持、なければJST現在時刻
+  const enteredAt = src.entered_at || jstISOString();
+  // source: 内部小文字化（master_catch.csv は小文字保持）
+  const srcNorm = normalizeSourceInternal(source||src.source||'manual');
+  return{
+    // id は内部UI用に残す（既存の描画処理との互換性維持）
+    id: src.id || genId(),
+    record_id: recordId,
+    date:src.date||'',time:src.time||'',species:src.species||'',
+    size_cm:toNum(src.size_cm),weight_kg:toNum(src.weight_kg),
+    count:parseInt(src.count)||1,bait:src.bait||'',method:src.method||'',
+    spot:src.spot||'',spot_lat:lat,spot_lng:lng,nearest_station:ns,
+    tide:src.tide||'',weather:src.weather||'',temp:toNum(src.temp),
+    water_temp:toNum(src.water_temp),wind:toNum(src.wind),memo:src.memo||'',
+    source: srcNorm,
+    // 新7列（W6-1 で追加）
+    canonical_spot: src.canonical_spot || '',
+    sea_area:       src.sea_area || '',
+    entered_at:     enteredAt,
+    source_detail:  src.source_detail || '',
+    prompt_version: src.prompt_version || '',
+    confidence:     src.confidence || '',
+  };
+}
+
+// crypto.randomUUID が使えない旧ブラウザ向けフォールバック
+function _fallbackUUID(){
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+    const r=Math.random()*16|0, v=c==='x'?r:(r&0x3|0x8);
+    return v.toString(16);
+  });
+}
+
+function getFilteredList(){
+  const q=(document.getElementById('filter-q').value||'').toLowerCase();
+  const sf=(document.getElementById('species-filter')||{}).value||'';
+  return records.filter(r=>{
+    const kw=!q||(r.species||'').toLowerCase().includes(q)||(r.spot||'').toLowerCase().includes(q)||
+              (r.bait||'').toLowerCase().includes(q)||(r.nearest_station||'').toLowerCase().includes(q);
+    const sp=!sf||r.species===sf;
+    return kw&&sp;
+  });
+}
+
+let ssDatetimeOverride=null,ssFilenames=[];
+function updateNow(){
+  const n=new Date();
+  const s=`${n.getFullYear()}年${n.getMonth()+1}月${n.getDate()}日 ${pad(n.getHours())}:${pad(n.getMinutes())}`;
+  if(!ssDatetimeOverride)document.querySelectorAll('.now-str-a').forEach(el=>el.textContent=s);
+}
+updateNow();setInterval(updateNow,30000);
+
+function extractDatetimeFromFilename(filename){
+  let m=filename.match(/(\d{1,2})-(\d{1,2})-(\d{4})_(\d{2})(\d{2})/);
+  if(m){const[,d,mo,y,h,mi]=m;const dt=new Date(+y,+mo-1,+d,+h,+mi);if(!isNaN(dt))return dt;}
+  m=filename.match(/(\d{1,2})-(\d{1,2})-(\d{4})_(\d{3,6})/);
+  if(m){const[,d,mo,y,t]=m;const h=t.length>=4?t.slice(0,-2):t.slice(0,1);const mi=t.slice(-2);const dt=new Date(+y,+mo-1,+d,+h,+mi);if(!isNaN(dt))return dt;}
+  m=filename.match(/(\d{4})(\d{2})(\d{2})[_\-](\d{2})(\d{2})(\d{2})/);
+  if(m){const[,y,mo,d,h,mi]=m;const dt=new Date(+y,+mo-1,+d,+h,+mi);if(!isNaN(dt))return dt;}
+  m=filename.match(/(\d{4})(\d{2})(\d{2})/);
+  if(m){const[,y,mo,d]=m;const dt=new Date(+y,+mo-1,+d);if(!isNaN(dt))return dt;}
+  return null;
+}
+function fmtDt(dt){return `${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日 ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;}
+
+function onSSFilePick(e){
+  const files=Array.from(e.target.files);if(!files.length)return;
+  ssFilenames=files.map(f=>f.name);
+  const results=[];
+  files.forEach(file=>{
+    const fromName=extractDatetimeFromFilename(file.name);
+    const fromModified=new Date(file.lastModified);
+    const dt=fromName||fromModified;
+    results.push({name:file.name,dt,src:fromName?'ファイル名から取得':'更新日時から取得'});
+  });
+  const earliest=results.reduce((a,b)=>a.dt<b.dt?a:b);
+  ssDatetimeOverride=earliest.dt;
+  document.querySelectorAll('.now-str-a').forEach(el=>el.textContent=fmtDt(ssDatetimeOverride));
+  document.getElementById('ss-file-info').textContent=`${files.length}枚選択 — 撮影日時: ${fmtDt(ssDatetimeOverride)}`;
+  document.getElementById('ss-file-info').style.color='var(--gold2)';
+  const listEl=document.getElementById('ss-datetime-list');
+  listEl.innerHTML=results.map(r=>'<div>📷 '+(r.name.length>40?r.name.slice(0,40)+'…':r.name)+' → '+fmtDt(r.dt)+' <span style="color:rgba(255,255,255,0.3);font-size:10px;">('+r.src+')</span></div>').join('');
+  listEl.style.display=results.length>0?'block':'none';
+  toast('✓ '+files.length+'枚選択 — 撮影日時: '+fmtDt(ssDatetimeOverride));
+}
+
+function resetSSDatetime(){
+  ssDatetimeOverride=null;ssFilenames=[];
+  document.getElementById('ss-file-info').textContent='未選択';
+  document.getElementById('ss-file-info').style.color='rgba(255,255,255,0.45)';
+  const ld=document.getElementById('ss-datetime-list');ld.innerHTML='';ld.style.display='none';
+  document.getElementById('ss-file-picker').value='';
+  updateNow();toast('現在時刻に戻しました');
+}
+
+const now=new Date();
+['f-date','m-date'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=now.toISOString().split('T')[0];});
+['f-time','m-time'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=pad(now.getHours())+':'+pad(now.getMinutes());});
+
+function switchTab(t){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  const tabs=['list','analyze','manual'];
+  const idx=tabs.indexOf(t);
+  if(idx>=0)document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='list'){renderTable();updateStats();}
+}
+
+function pick(id,el){document.getElementById(id).value=el.textContent;}
+function pickMM(el,v){document.querySelectorAll('[id^="mm-"]').forEach(t=>t.classList.remove('on'));el.classList.add('on');selMM=v;}
+
+function copyPrompt(){
+  const txt=`添付したInstagramスクショを解析してください。
+
+【最初にファイル名から撮影日時を取得してください】
+添付ファイルのファイル名を確認し、以下のルールで撮影日時を取得してください。
+・パターン1: 「スクリーンショット_25-3-2026_19040_...」→ 2026年3月25日 19:04
+・パターン2: 「Screenshot_20260325_190400.png」→ 2026年3月25日 19:04
+・パターン3: 「IMG_20260325_190400.jpg」→ 2026年3月25日 19:04
+ファイル名から日時が読めない場合は、ファイルの更新日時を使ってください。
+複数ファイルの場合は各ファイルごとにファイル名から撮影日時を取得してください。
+
+【解析手順】
+手順1（画像を最初に解析）:
+　画像を見て以下を判定してください。
+　・写っている魚の魚種（視覚的に判定）
+　・魚の数量（実際に数える）
+　・サイズ（魚同士の比較・体形・特徴から推定。不明な場合でも推定値を出す）
+　・重量（サイズからの推定値を出す。不明な場合でも推定値を出す）
+
+手順2（文章・ハッシュタグで補完）:
+　文章・ハッシュタグを確認し、画像の判定と異なる点や追加情報があれば採用する。
+　・数値記載（例:50kg、60cmなど）があれば画像推定より優先
+　・数量が画像と異なる場合はmemoに両方記載
+　・魚種が異なる場合は文章を優先しmemoに画像判定を記載
+
+手順3（その他情報）:
+　エサ・釣法・場所・潮・天気・水温は文章・ハッシュタグから取得
+
+手順4（緯度・経度の推定）:
+　釣り場の地名（例:室戸岬沖、宇和島沖、足摺岬）から緯度・経度を推定してください。
+　地名が不明な場合はspot_lat・spot_lngを null にしてください。
+
+以下のJSON配列形式のみで返してください（説明不要）:
+[{"screenshot_no":1,"date":"YYYY-MM-DD","time":"HH:MM","species":"魚種","size_cm":推定数値,"weight_kg":推定数値,"count":数値,"bait":"エサ/ルアー","method":"釣法","spot":"釣り場所","spot_lat":緯度数値またはnull,"spot_lng":経度数値またはnull,"tide":"潮回り","weather":"天気","water_temp":数値,"temp":数値,"wind":数値,"memo":"メモ"},...]
+
+※size_cmとweight_kgは不明でも推定値を必ず入れてください（推定の場合はmemoに「推定値」と記載）
+※1枚でも配列で返してください
+※同投稿に複数魚種がある場合は魚種ごとに別オブジェクト
+※文章に複数の重量が列挙されている場合（例:「35、30、20kg」）は重量ごとに別オブジェクトに分割してください
+※【重要・日付計算】「N日前」「N時間前」は必ずファイル名から取得した撮影日時からN日（N時間）を引いた日付を使用してください。現在時刻からは絶対に計算しないでください。`;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(()=>toast('📋 コピーしました！')).catch(()=>fallbackCopy(txt));
+  }else{fallbackCopy(txt);}
+}
+
+function fallbackCopy(txt){
+  const ta=document.createElement('textarea');ta.value=txt;
+  ta.style.cssText='position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none;';
+  document.body.appendChild(ta);ta.focus();ta.select();
+  try{document.execCommand('copy');toast('📋 コピーしました！');}
+  catch(e){toast('コピーできませんでした（長押しで手動コピーしてください）');}
+  document.body.removeChild(ta);
+}
+
+function parseJSON(){
+  const raw=document.getElementById('json-input').value.trim();
+  if(!raw){toast('JSONを貼り付けてください');return;}
+  let data;
+  try{const cleaned=raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();data=JSON.parse(cleaned);}
+  catch(e){showParseResult(false,'JSONの形式が正しくありません。Claudeの返答をそのまま貼り付けてください。');return;}
+  const items=Array.isArray(data)?data:[data];
+  queue=items;
+  if(items.length===1)items[0]._checked=true;
+  const msg=items.length===1?'✓ 1件を解析しました。確認後「＋リストに追加」してください。':`✓ ${items.length}件を解析しました。追加したい件にチェックを入れてください。`;
+  showParseResult(true,msg);renderQueue();
+}
+
+function renderQueue(){
+  const wrap=document.getElementById('queue-wrap'),list=document.getElementById('queue-list');
+  wrap.style.display='';
+  queue.forEach((item,i)=>{if(item._checked===undefined)item._checked=true;});
+  list.innerHTML=queue.map((item,i)=>`
+    <div class="queue-item${item._checked?' checked':''}" id="qi-${i}">
+      <div class="qi-chk" onclick="toggleCheck(event,${i})">${item._checked?'✓':''}</div>
+      <div class="qi-main" onclick="showPreview(${i})" style="cursor:pointer;">
+        <div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div class="qi-date">${item.date||'日付不明'}</div>
+            ${item.screenshot_no?`<span class="qi-badge">No.${item.screenshot_no}</span>`:''}
+            ${item.spot_lat?`<span class="qi-badge" style="background:rgba(108,52,131,0.12);color:var(--purple);border-color:rgba(108,52,131,0.25);">📍GPS</span>`:''}
+          </div>
+          <div class="qi-info">
+            <span class="qi-species">${item.species||'魚種不明'}</span>
+            ${item.size_cm>0?' '+item.size_cm+'cm':''}
+            ${item.weight_kg>0?' '+item.weight_kg+'kg':''}
+            <span style="color:var(--text3);margin-left:4px;">${item.spot||''}</span>
+          </div>
+        </div>
+      </div>
+      <button class="qi-detail-btn" onclick="showPreview(${i})">詳細 →</button>
+    </div>
+  `).join('');
+  updateSelCount();
+  if(queue.length>0)showPreview(0);
+}
+
+function toggleCheck(e,i){
+  e.stopPropagation();
+  queue[i]._checked=!queue[i]._checked;
+  const el=document.getElementById('qi-'+i);
+  el.classList.toggle('checked',queue[i]._checked);
+  el.querySelector('.qi-chk').textContent=queue[i]._checked?'✓':'';
+  updateSelCount();
+}
+
+function showPreview(i){
+  const item=queue[i];
+  document.querySelectorAll('.queue-item').forEach((el,idx)=>el.classList.toggle('previewing',idx===i));
+  const ns=findNearestStation(item.spot_lat,item.spot_lng);
+  const chkLabel=item._checked?'<span style="color:var(--green);font-size:12px;">✓ リスト追加予定</span>':'<span style="color:var(--text3);font-size:12px;">— 追加しない（チェックなし）</span>';
+
+  document.getElementById('preview-panel').innerHTML=`
+    <div class="preview-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div class="preview-title"><span style="font-size:13px;color:var(--text3);font-family:'Noto Sans JP',sans-serif;">${i+1} / ${queue.length}件目 &nbsp;|&nbsp; </span>編集・確認</div>
+        ${chkLabel}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+        <div class="preview-item"><div class="preview-lbl">投稿日付</div><input class="pv-input" id="pv-date" type="date" value="${item.date||''}"></div>
+        <div class="preview-item"><div class="preview-lbl">投稿時刻</div><input class="pv-input" id="pv-time" type="time" value="${item.time||''}"></div>
+        <div class="preview-item" style="grid-column:1/-1;"><div class="preview-lbl">魚種</div><input class="pv-input pv-species" id="pv-species" type="text" value="${item.species||''}"></div>
+        <div class="preview-item"><div class="preview-lbl">サイズ cm</div><input class="pv-input pv-big" id="pv-size" type="number" value="${item.size_cm||''}" placeholder="推定値"></div>
+        <div class="preview-item"><div class="preview-lbl">重量 kg</div><input class="pv-input pv-gold" id="pv-weight" type="number" step="0.1" value="${item.weight_kg||''}" placeholder="推定値"></div>
+        <div class="preview-item"><div class="preview-lbl">本数</div><input class="pv-input" id="pv-count" type="number" value="${item.count||1}"></div>
+        <div class="preview-item"><div class="preview-lbl">エサ / ルアー</div><input class="pv-input" id="pv-bait" type="text" value="${item.bait||''}"></div>
+        <div class="preview-item" style="grid-column:1/-1;"><div class="preview-lbl">釣法</div><input class="pv-input" id="pv-method" type="text" value="${item.method||''}"></div>
+        <div class="preview-item" style="grid-column:1/-1;"><div class="preview-lbl">ポイント</div><input class="pv-input" id="pv-spot" type="text" value="${item.spot||''}"></div>
+        <div class="preview-item"><div class="preview-lbl">緯度 spot_lat</div><input class="pv-input" id="pv-lat" type="number" step="0.0001" value="${item.spot_lat!=null&&item.spot_lat!==''?item.spot_lat:''}" placeholder="例: 33.28"></div>
+        <div class="preview-item"><div class="preview-lbl">経度 spot_lng</div><input class="pv-input" id="pv-lng" type="number" step="0.0001" value="${item.spot_lng!=null&&item.spot_lng!==''?item.spot_lng:''}" placeholder="例: 134.15"></div>
+        <div class="preview-item" style="grid-column:1/-1;"><div class="preview-lbl">最近傍観測地点（自動計算）</div>
+          <div style="padding:6px 8px;font-size:13px;font-weight:700;color:var(--purple);">${ns?'📍 '+ns:(item.spot_lat?'距離300km超 — 該当なし':'— 座標未設定')}</div>
+        </div>
+        <div class="preview-item"><div class="preview-lbl">潮回り</div><select class="pv-input" id="pv-tide">${['','大潮','中潮','小潮','長潮','若潮'].map(t=>`<option value="${t}" ${item.tide===t?'selected':''}>${t||'—'}</option>`).join('')}</select></div>
+        <div class="preview-item"><div class="preview-lbl">天気</div><select class="pv-input" id="pv-weather">${['','晴れ','曇り','雨','晴れのち曇り','荒天'].map(t=>`<option value="${t}" ${item.weather===t?'selected':''}>${t||'—'}</option>`).join('')}</select></div>
+        <div class="preview-item"><div class="preview-lbl">水温 ℃</div><input class="pv-input" id="pv-wtemp" type="number" step="0.1" value="${item.water_temp||''}"></div>
+        <div class="preview-item"><div class="preview-lbl">気温 ℃</div><input class="pv-input" id="pv-temp" type="number" value="${item.temp||''}"></div>
+        <div class="preview-item" style="grid-column:1/-1;"><div class="preview-lbl">メモ</div><textarea class="pv-input" id="pv-memo" rows="2" style="resize:vertical;">${item.memo||''}</textarea></div>
+      </div>
+      <button onclick="applyPreviewEdit(${i})" style="width:100%;padding:10px;background:var(--gold);color:#fff;border:none;border-radius:6px;font-family:'Noto Sans JP',sans-serif;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px;letter-spacing:1px;">✓ この内容で確定（キューに反映）</button>
+      <div style="display:flex;gap:8px;">
+        ${i>0?`<button onclick="saveAndPrev(${i})" style="flex:1;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;">← 確定して前へ</button>`:'<div style="flex:1;"></div>'}
+        ${i<queue.length-1?`<button onclick="saveAndNext(${i})" style="flex:1;padding:8px;background:var(--sea);color:var(--gold2);border:1px solid rgba(184,150,62,.3);border-radius:6px;cursor:pointer;font-size:12px;">確定して次へ →</button>`:'<div style="flex:1;"></div>'}
+      </div>
+    </div>
+  `;
+}
+
+function getPreviewValues(){
+  const g=id=>{const e=document.getElementById(id);return e?e.value:'';};
+  const latVal=g('pv-lat');const lngVal=g('pv-lng');
+  return{date:g('pv-date'),time:g('pv-time'),species:g('pv-species'),
+    size_cm:parseFloat(g('pv-size'))||0,weight_kg:parseFloat(g('pv-weight'))||0,
+    count:parseInt(g('pv-count'))||1,bait:g('pv-bait'),method:g('pv-method'),spot:g('pv-spot'),
+    spot_lat:latVal?parseFloat(latVal):'',spot_lng:lngVal?parseFloat(lngVal):'',
+    tide:g('pv-tide'),weather:g('pv-weather'),
+    water_temp:parseFloat(g('pv-wtemp'))||0,temp:parseFloat(g('pv-temp'))||0,memo:g('pv-memo'),
+  };
+}
+
+function applyPreviewEdit(i){
+  const vals=getPreviewValues();Object.assign(queue[i],vals);
+  renderQueue();
+  document.querySelectorAll('.queue-item').forEach((el,idx)=>el.classList.toggle('previewing',idx===i));
+  toast('✓ 修正をキューに反映しました');
+}
+function saveAndNext(i){applyPreviewEdit(i);setTimeout(()=>showPreview(i+1),50);}
+function saveAndPrev(i){applyPreviewEdit(i);setTimeout(()=>showPreview(i-1),50);}
+
+function toggleSelectAll(){
+  const anyUnchecked=queue.some(item=>!item._checked);
+  queue.forEach(item=>item._checked=anyUnchecked);renderQueue();
+}
+
+function updateSelCount(){
+  const n=queue.filter(item=>item._checked).length;
+  document.getElementById('sel-count').textContent=n+'件選択';
+  const btn=document.getElementById('btn-add-sel');
+  btn.disabled=(n===0);btn.textContent=`＋ 選択した${n}件をリストに追加`;
+}
+
+function addSelected(){
+  const selected=queue.filter(item=>item._checked);
+  if(!selected.length){toast('1件以上選択してください');return;}
+  let added=0;
+  selected.forEach(item=>{if(!item.species)return;records.unshift(makeRecord(item,'Instagram'));added++;});
+  persist();toast(`✓ ${added}件をリストに追加しました！`);
+  queue=queue.filter(item=>!item._checked);
+  if(queue.length===0){
+    document.getElementById('queue-wrap').style.display='none';
+    showParseResult(true,`✓ 全件追加しました。「データ一覧」タブで確認できます。`);
+  }else{renderQueue();showParseResult(true,`✓ ${added}件を追加しました。残り${queue.length}件が選択可能です。`);}
+}
+
+function showParseResult(ok,msg){
+  const el=document.getElementById('parse-result');
+  el.innerHTML=`<span class="${ok?'parse-ok':'parse-err'}">${msg}</span>`;el.classList.add('show');
+}
+
+function clearJSONZone(){
+  document.getElementById('json-input').value='';
+  document.getElementById('parse-result').classList.remove('show');
+  document.getElementById('queue-wrap').style.display='none';
+  queue=[];
+  document.getElementById('preview-panel').innerHTML='<div style="color:var(--text3);font-size:13px;text-align:center;padding:60px 20px;">← 解析済みリストの行をクリックすると<br>ここに詳細が表示されます</div>';
+}
+
+function addManual(){
+  const species=document.getElementById('m-species').value.trim();
+  if(!species){toast('魚種を入力してください');return;}
+  const src={
+    date:document.getElementById('m-date').value,time:document.getElementById('m-time').value,
+    species,size_cm:document.getElementById('m-size').value,
+    weight_kg:document.getElementById('m-weight').value,count:document.getElementById('m-count').value,
+    bait:document.getElementById('m-bait').value.trim(),method:selMM,
+    spot:document.getElementById('m-spot').value.trim(),
+    spot_lat:document.getElementById('m-lat').value,spot_lng:document.getElementById('m-lng').value,
+    tide:document.getElementById('m-tide').value,weather:document.getElementById('m-weather').value,
+    temp:document.getElementById('m-temp').value,water_temp:document.getElementById('m-wtemp').value,
+    wind:document.getElementById('m-wind').value,memo:document.getElementById('m-memo').value.trim(),
+    source:document.getElementById('m-source').value,
+  };
+  records.unshift(makeRecord(src,src.source));persist();toast('✓ 追加しました！');
+  ['m-species','m-size','m-weight','m-count','m-bait','m-spot','m-lat','m-lng','m-wtemp','m-temp','m-wind','m-memo']
+    .forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('m-tide').value='';document.getElementById('m-weather').value='';
+  selMM='';document.querySelectorAll('[id^="mm-"]').forEach(t=>t.classList.remove('on'));
+}
+
+let selectedIds=new Set(),sortKey='date',sortAsc=false;
+function setSort(key){if(sortKey===key){sortAsc=!sortAsc;}else{sortKey=key;sortAsc=key==='species';}renderTable();}
+function resetSort(){sortKey='date';sortAsc=false;renderTable();}
+
+function updateSortArrows(){
+  ['date','species','size_cm','weight_kg','entered_at'].forEach(k=>{
+    const el=document.getElementById('arr-'+k);if(!el)return;
+    const th=el.closest('th');
+    if(sortKey===k){el.textContent=sortAsc?' ▲':' ▼';if(th)th.classList.add('active-sort');}
+    else{el.textContent='';if(th)th.classList.remove('active-sort');}
+  });
+}
+
+function updateSpeciesFilter(){
+  const sel=document.getElementById('species-filter');if(!sel)return;
+  const cur=sel.value;
+  const species=[...new Set(records.map(r=>r.species).filter(Boolean))].sort();
+  sel.innerHTML='<option value="">🐟 全魚種</option>'+species.map(s=>`<option value="${s}" ${s===cur?'selected':''}>${s}</option>`).join('');
+}
+
+function getDupGroups(records){
+  const groups={};
+  records.forEach(r=>{
+    if(!r.date||!r.species)return;
+    const key=`${r.date}|${r.species}|${r.count}|${r.size_cm||''}|${r.weight_kg||''}|${(r.spot||'').trim()}`;
+    if(!groups[key])groups[key]=[];groups[key].push(r.id);
+  });
+  return Object.entries(groups).filter(([,ids])=>ids.length>1).map(([key,ids])=>({key,ids,count:ids.length}));
+}
+
+function delRecord(id){selectedIds.delete(id);records=records.filter(r=>r.id!==id);persist();renderTable();updateStats();}
+
+function toggleRow(id,checked){
+  if(checked)selectedIds.add(id);else selectedIds.delete(id);
+  updateSelActionBar();
+  const list=getFilteredList();const chkAll=document.getElementById('chk-all');
+  if(chkAll)chkAll.checked=list.length>0&&list.every(r=>selectedIds.has(r.id));
+}
+
+function toggleAllRows(checked){
+  const list=getFilteredList();list.forEach(r=>{if(checked)selectedIds.add(r.id);else selectedIds.delete(r.id);});
+  renderTable();updateSelActionBar();
+}
+
+function updateSelActionBar(){
+  const n=selectedIds.size;const countEl=document.getElementById('sel-row-count');const btn=document.getElementById('btn-del-sel');
+  if(countEl)countEl.textContent=n;
+  if(btn){btn.disabled=(n===0);btn.textContent=n>0?`🗑 選択削除（${n}件）`:'🗑 選択削除';}
+}
+
+function clearRowSelection(){
+  selectedIds.clear();const chkAll=document.getElementById('chk-all');
+  if(chkAll)chkAll.checked=false;renderTable();
+}
+
+function deleteSelected(){
+  const n=selectedIds.size;if(!n){toast('削除する行を選択してください');return;}
+  if(!confirm(`選択した${n}件を削除しますか？`))return;
+  records=records.filter(r=>!selectedIds.has(r.id));selectedIds.clear();
+  persist();renderTable();updateStats();toast(`✓ ${n}件を削除しました`);
+}
+
+// W6-1：source は内部小文字保持なので、バッジ表示では日本語/英字に戻す
+function srcBadge(s){
+  if(!s)return '';
+  const norm = normalizeSourceInternal(s);
+  // 内部値 → バッジ表示用ラベル
+  const labelMap = { 'instagram':'Instagram', 'manual':'手動入力', 'blog:ameblo':'アメブロ', 'other':'その他' };
+  const display = labelMap[norm] || (norm.startsWith('blog:') ? 'ブログ' : norm);
+  const cls = norm==='instagram'?'src-ig':norm==='manual'?'src-m':(norm==='blog:ameblo'||norm.startsWith('blog:'))?'src-a':'';
+  return `<span class="src-badge ${cls}">${display}</span>`;
+}
+
+function renderTable(){
+  const list=[...getFilteredList()].sort((a,b)=>{
+    let av=a[sortKey]||'',bv=b[sortKey]||'';
+    if(sortKey==='size_cm'||sortKey==='weight_kg'){av=parseFloat(av)||0;bv=parseFloat(bv)||0;}
+    if(av<bv)return sortAsc?-1:1;if(av>bv)return sortAsc?1:-1;return 0;
+  });
+  updateSortArrows();updateSpeciesFilter();
+  document.getElementById('empty-state').style.display=list.length?'none':'block';
+  document.getElementById('main-table').style.display=list.length?'':'none';
+
+  const dupGroups=getDupGroups(records);
+  const dupIdSet=new Set(dupGroups.flatMap(g=>g.ids));
+  const dupIds=new Set(list.filter(r=>dupIdSet.has(r.id)).map(r=>r.id));
+  const dupBanner=document.getElementById('dup-banner');
+  if(dupGroups.length>0){
+    const groupDesc=dupGroups.map(g=>{const[date,species,count,spot]=g.key.split('|');return`${date} ${species}×${count}匹${spot?' @'+spot:''} (${g.count}件重複)`;}).join('、');
+    dupBanner.innerHTML=`⚠️ <b>${dupGroups.length}グループ・${dupIds.size}件</b>に重複の可能性があります。<br><span style="font-size:11px;">${groupDesc}</span>`;
+    dupBanner.classList.add('show');
+  }else{dupBanner.classList.remove('show');}
+
+  const allChecked=list.length>0&&list.every(r=>selectedIds.has(r.id));
+  const chkAll=document.getElementById('chk-all');if(chkAll)chkAll.checked=allChecked;
+
+  document.getElementById('tbody').innerHTML=list.map(r=>{
+    const dup=dupIds.has(r.id),chk=selectedIds.has(r.id);
+    const nsCell=r.nearest_station?`<span class="st-badge">${r.nearest_station}</span>`:
+      (r.spot_lat?'<span style="color:var(--text3);font-size:10px;">範囲外</span>':'—');
+    return`<tr class="${dup?'dup-row':''}" id="tr-${r.id}">
+      <td class="chk-col"><input type="checkbox" class="row-chk" ${chk?'checked':''} onchange="toggleRow(${r.id},this.checked)"></td>
+      <td class="dt">${r.date?r.date.slice(2).replace(/-/g,'/'):'—'}</td>
+      <td class="sp" style="max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.species||''}">${r.species?r.species.slice(0,7):''}${dup?'<span class="dup-icon" title="重複の可能性あり">⚠️</span>':''}</td>
+      <td class="sz">${dv(r.size_cm)}</td><td class="wt">${dv(r.weight_kg)}</td>
+      <td>${r.count||1}</td><td>${r.bait||'—'}</td>
+      <td style="font-size:11px;">${r.method||'—'}</td>
+      <td style="max-width:90px;overflow:hidden;text-overflow:ellipsis;" title="${r.spot||''}">${r.spot||'—'}</td>
+      <td class="ns">${nsCell}</td>
+      <td>${r.tide||'—'}</td><td style="font-size:11px;">${r.weather||'—'}</td>
+      <td>${dv(r.water_temp)}</td><td>${dv(r.temp)}</td><td>${dv(r.wind)}</td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;font-size:11px;" title="${r.memo||''}">${r.memo||'—'}</td>
+      <td>${srcBadge(r.source)}</td>
+      <td class="entered-dt">${r.entered_at?r.entered_at.replace('T',' ').slice(0,16):'—'}</td>
+      <td style="padding:4px;text-align:center;"><button class="btn-dup" onclick="openClonePanel(${r.id})">複製</button></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('hcount').textContent=records.length;updateSelActionBar();
+}
+
+let cloneSrcId=null;
+function openClonePanel(id){
+  const r=records.find(rec=>rec.id===id);if(!r)return;cloneSrcId=id;
+  document.getElementById('clone-src-info').innerHTML=`<b>複製元：</b>${r.date} ${r.time||''} ／ <b>${r.species||'—'}</b>${r.weight_kg?' ／ '+r.weight_kg+'kg':''}${r.size_cm?' '+r.size_cm+'cm':''}${r.spot?' ／ '+r.spot:''}`;
+  const sv=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v||'';};
+  sv('cl-date',r.date);sv('cl-time',r.time);sv('cl-species',r.species);sv('cl-weight',r.weight_kg);
+  sv('cl-size',r.size_cm);sv('cl-count',r.count||1);sv('cl-bait',r.bait);sv('cl-method',r.method);
+  sv('cl-spot',r.spot);sv('cl-wtemp',r.water_temp);sv('cl-temp',r.temp);sv('cl-wind',r.wind);sv('cl-memo',r.memo);
+  const tide=document.getElementById('cl-tide');if(tide)tide.value=r.tide||'';
+  document.getElementById('clone-overlay').classList.add('show');
+}
+function closeClonePanel(e){
+  if(e&&e.target!==document.getElementById('clone-overlay'))return;
+  document.getElementById('clone-overlay').classList.remove('show');cloneSrcId=null;
+}
+function buildCloneRecord(){
+  const g=id=>{const e=document.getElementById(id);return e?e.value:'';};
+  const src=records.find(r=>r.id===cloneSrcId)||{};
+  return makeRecord({
+    date:g('cl-date'),time:g('cl-time'),species:g('cl-species'),size_cm:g('cl-size'),
+    weight_kg:g('cl-weight'),count:g('cl-count'),bait:g('cl-bait'),method:g('cl-method'),
+    spot:g('cl-spot'),spot_lat:src.spot_lat||'',spot_lng:src.spot_lng||'',
+    tide:g('cl-tide'),weather:'',temp:g('cl-temp'),water_temp:g('cl-wtemp'),wind:g('cl-wind'),memo:g('cl-memo'),
+  },'Instagram');
+}
+function saveClone(){
+  const r=buildCloneRecord();if(!r.species){toast('魚種を入力してください');return;}
+  records.unshift(r);persist();renderTable();updateStats();
+  document.getElementById('clone-overlay').classList.remove('show');cloneSrcId=null;
+  toast('✓ 複製して追加しました！');
+}
+function saveCloneAndMore(){
+  const r=buildCloneRecord();if(!r.species){toast('魚種を入力してください');return;}
+  records.unshift(r);persist();renderTable();updateStats();
+  toast('✓ 追加しました。続けて複製できます。');
+  ['cl-weight','cl-size','cl-memo'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('cl-count').value='1';
+}
+
+function updateStats(){
+  // W6-1：source は内部小文字保持なので、比較値も小文字化
+  const speciesSet=new Set();let maxSize=0,maxWeight=0,igCount=0,manCount=0,geocoded=0;
+  records.forEach(r=>{
+    if(r.species)speciesSet.add(r.species);
+    if(r.size_cm>0&&r.size_cm>maxSize)maxSize=r.size_cm;
+    if(r.weight_kg>0&&r.weight_kg>maxWeight)maxWeight=r.weight_kg;
+    const srcNorm = normalizeSourceInternal(r.source);
+    if(srcNorm==='instagram')igCount++;if(srcNorm==='manual')manCount++;
+    if(r.spot_lat!==''&&r.spot_lat!=null)geocoded++;
+  });
+  document.getElementById('s-count').textContent=records.length;
+  document.getElementById('s-species').textContent=speciesSet.size;
+  document.getElementById('s-max').textContent=maxSize?maxSize+'cm':'—';
+  document.getElementById('s-maxw').textContent=maxWeight?maxWeight+'kg':'—';
+  document.getElementById('s-geocoded').textContent=geocoded;
+  document.getElementById('s-ig').textContent=igCount;document.getElementById('s-man').textContent=manCount;
+}
+
+// ===== CSV 生成（exportCSV / GitHub共通、W6-1：26列 + CRLF + UTF-8 BOM）=====
+function generateCSVContent(){
+  // CSV値エスケープ（カンマ・改行・ダブルクォートを含む値を "..." で囲み、内部 " は "" にエスケープ）
+  function csvEsc(v){
+    if(v==null) return '';
+    const s = String(v);
+    if(/[",\n\r]/.test(s)){
+      return '"'+s.replace(/"/g,'""')+'"';
+    }
+    return s;
+  }
+  const header = MASTER_COLUMNS.join(',');
+  const rows = records.map(r=>MASTER_COLUMNS.map(col=>{
+    let v = r[col];
+    if(col==='source'){
+      // master_catch.csv は内部小文字保持（emit_* 系と揃える）
+      v = normalizeSourceInternal(v);
+    }
+    if(v==='' || v==null) return '';
+    return csvEsc(v);
+  }).join(','));
+  // UTF-8 BOM + CRLF 改行 + 末尾改行（emit_fishing_data.py の出力規約と統一）
+  return '\uFEFF'+header+'\r\n'+rows.join('\r\n')+'\r\n';
+}
+
+function exportCSV(){
+  if(!records.length){toast('データがありません');return;}
+  const csv=generateCSVContent();
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;
+  a.download='fishing_data.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  toast(`✓ CSV保存完了 (${records.length}件)`);
+}
+
+// ===== GitHub API 直接アップロード =====
+const GH_OWNER='supergonti';
+const GH_REPO='fishing-system';
+const GH_FILE='data/master_catch.csv';  // W6-1: master_catch.csv 直書き化
+const GH_TOKEN_KEY='fishing_gh_token';
+
+// UTF-8対応 Base64エンコード
+function toBase64UTF8(str){
+  const bytes=new TextEncoder().encode(str);
+  let bin='';
+  bytes.forEach(b=>bin+=String.fromCharCode(b));
+  return btoa(bin);
+}
+
+// W6-1：master_catch.csv へ直書きするためにマージ＋PUT ロジックに刷新
+async function uploadToGitHub(){
+  if(!records.length){toast('データがありません');return;}
+  const token=localStorage.getItem(GH_TOKEN_KEY);
+  if(!token){
+    toast('⚙ まずトークンを設定してください');
+    showGHTokenModal();
+    return;
+  }
+  const btn=document.getElementById('btn-gh-push');
+  if(btn){btn.disabled=true;btn.textContent='📤 アップロード中...';}
+  const apiBase=`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_FILE}`;
+  try{
+    // ① 現在の master_catch.csv を取得（SHA + 内容）
+    let sha=null, masterRecords=[];
+    const getRes=await fetch(apiBase,{
+      method:'GET',
+      headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}
+    });
+    if(getRes.status===401||getRes.status===403){
+      const errBody=await getRes.text().catch(()=>'');
+      localStorage.removeItem(GH_TOKEN_KEY);
+      alert('GitHub認証エラー (HTTP '+getRes.status+')\n\nトークンが無効または権限不足です。\n⚙ボタンで再設定してください。\n\n詳細: '+errBody);
+      showGHTokenModal();
+      return;
+    }
+    if(getRes.ok){
+      const data=await getRes.json();
+      sha=data.sha;
+      // Base64 デコード（改行除去 → ASCII バイト列復元 → UTF-8 デコード）
+      const b64 = (data.content||'').replace(/\n/g,'');
+      const binStr = atob(b64);
+      const bytes = new Uint8Array(binStr.length);
+      for(let i=0;i<binStr.length;i++) bytes[i] = binStr.charCodeAt(i);
+      const decoded = new TextDecoder('utf-8').decode(bytes);
+      masterRecords = parseCSVText(decoded);
+    } else if(getRes.status===404){
+      // ファイル未作成 → 新規作成扱い
+      sha=null;
+    } else {
+      const errBody=await getRes.text().catch(()=>'');
+      alert('SHA取得失敗\nHTTP '+getRes.status+'\n'+errBody);
+      return;
+    }
+
+    // ② マージ：master 既存 UUID 保護
+    const mergeResult = mergeWithMaster(records, masterRecords);
+    if(mergeResult.deletions.length > 0){
+      const examples = mergeResult.deletions.slice(0,3).map(r=>`${r.date} ${r.species}`).join(' / ');
+      const confirmMsg = `⚠ master_catch.csv に存在し、V5.5 ローカルに無いレコードが ${mergeResult.deletions.length} 件あります。\n\nこれらを削除して push しますか？\n\n例：${examples}`;
+      if(!confirm(confirmMsg)){
+        toast('Push をキャンセルしました');
+        return;
+      }
+    }
+    // ローカル records を merge 結果で更新（UUID と entered_at が反映される）
+    records = mergeResult.merged;
+    persist();
+
+    // ③ 26列 CSV を生成して PUT
+    const csv = generateCSVContent();
+    const content = toBase64UTF8(csv);
+    const today = new Date().toISOString().slice(0,10);
+    const body = {
+      message: `釣果データ更新 ${today} (${records.length}件)`,
+      content: content,
+    };
+    if(sha){body.sha=sha;}
+    const putRes=await fetch(apiBase,{
+      method:'PUT',
+      headers:{
+        'Authorization':'token '+token,
+        'Content-Type':'application/json',
+        'Accept':'application/vnd.github.v3+json'
+      },
+      body:JSON.stringify(body)
+    });
+    const putText=await putRes.text();
+    let putData={};
+    try{putData=JSON.parse(putText);}catch(e){}
+
+    if(putRes.ok||putRes.status===200||putRes.status===201){
+      const commitSha=(putData.commit&&putData.commit.sha?putData.commit.sha:'').slice(0,7);
+      const msg = `✅ master_catch.csv 保存成功\n\nレコード数: ${records.length}件\n新規: ${mergeResult.newCount}件 / 既存: ${mergeResult.keptCount}件 / 削除: ${mergeResult.deletions.length}件\nCommit: ${commitSha}`;
+      alert(msg);
+      toast(`✓ GitHub保存完了（${records.length}件）commit:${commitSha}`);
+    } else if(putRes.status===409){
+      alert('⚠ 競合エラー (HTTP 409)\n\nファイルが他で更新されました。リロード後にもう一度お試しください。\n\n詳細: '+putText);
+    } else if(putRes.status===422){
+      alert('⚠ GitHub API エラー (HTTP 422)\n\nファイル内容が同一か、SHA が不正です。\n\n詳細: '+putText.slice(0,500));
+    } else if(putRes.status===401||putRes.status===403){
+      localStorage.removeItem(GH_TOKEN_KEY);
+      alert('⚠ GitHub認証エラー (HTTP '+putRes.status+')\n\nトークンの権限が不足しています。\npublic_repo スコープが必要です。\n\n詳細: '+putText);
+      showGHTokenModal();
+    } else {
+      alert('⚠ GitHub保存失敗\nHTTP '+putRes.status+'\n\n応答: '+putText.slice(0,500));
+    }
+  } catch(e){
+    alert('⚠ 通信エラー\n\n'+e.message+'\n\nネットワーク接続を確認してください。');
+  } finally {
+    if(btn){btn.disabled=false;btn.textContent='🚀 GitHubに保存';}
+  }
+}
+
+// ===== GitHub トークン管理 =====
+function showGHTokenModal(){
+  const overlay=document.getElementById('gh-token-overlay');
+  overlay.style.display='flex';
+  const input=document.getElementById('gh-token-input');
+  const status=document.getElementById('gh-token-status');
+  const saved=localStorage.getItem(GH_TOKEN_KEY);
+  if(saved){
+    input.value='';
+    input.placeholder='設定済み（変更する場合のみ入力）';
+    status.innerHTML='<span style="color:var(--green);">✓ トークン設定済み</span>';
+  } else {
+    input.placeholder='ghp_xxxxxxxxxxxxxxxxxxxx';
+    status.innerHTML='<span style="color:var(--text3);">未設定</span>';
+  }
+  setTimeout(()=>{ if(!saved) input.focus(); },100);
+}
+
+function closeGHTokenModal(e){
+  if(e&&e.target!==document.getElementById('gh-token-overlay')) return;
+  document.getElementById('gh-token-overlay').style.display='none';
+}
+
+function saveGHToken(){
+  const val=document.getElementById('gh-token-input').value.trim();
+  if(!val){
+    if(localStorage.getItem(GH_TOKEN_KEY)){
+      document.getElementById('gh-token-overlay').style.display='none';
+      return;
+    }
+    toast('トークンを入力してください'); return;
+  }
+  localStorage.setItem(GH_TOKEN_KEY,val);
+  document.getElementById('gh-token-status').innerHTML='<span style="color:var(--green);">✓ 保存しました</span>';
+  document.getElementById('gh-token-input').value='';
+  document.getElementById('gh-token-input').placeholder='設定済み（変更する場合のみ入力）';
+  toast('✓ GitHub トークンを保存しました');
+  setTimeout(()=>{ document.getElementById('gh-token-overlay').style.display='none'; },800);
+}
+
+function clearGHToken(){
+  if(!confirm('GitHub トークンを削除しますか？')) return;
+  localStorage.removeItem(GH_TOKEN_KEY);
+  document.getElementById('gh-token-input').value='';
+  document.getElementById('gh-token-input').placeholder='ghp_xxxxxxxxxxxxxxxxxxxx';
+  document.getElementById('gh-token-status').innerHTML='<span style="color:var(--text3);">削除しました</span>';
+  toast('GitHub トークンを削除しました');
+}
+
+// W6-1：26列対応の CSV インポート
+function importCSV(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const text=ev.target.result.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+    const lines=text.split('\n').filter(l=>l.trim());
+    if(lines.length<2){toast('データが見つかりません');return;}
+    // 26列CSVのヘッダーは小文字で固定なので toLowerCase は安全。19列レガシーCSVも互換受け入れ
+    const headers=lines[0].split(',').map(h=>h.trim().toLowerCase());
+    let added=0;
+    for(let i=1;i<lines.length;i++){
+      const vals=parseCSVLine(lines[i]);const obj={};
+      headers.forEach((h,idx)=>{obj[h]=vals[idx]||'';});
+      const r=makeRecord({
+        record_id:obj.record_id, date:obj.date, time:obj.time, species:obj.species,
+        size_cm:obj.size_cm, weight_kg:obj.weight_kg, count:obj.count,
+        bait:obj.bait, method:obj.method, spot:obj.spot,
+        spot_lat:obj.spot_lat, spot_lng:obj.spot_lng, nearest_station:obj.nearest_station,
+        tide:obj.tide, weather:obj.weather, temp:obj.temp, water_temp:obj.water_temp,
+        wind:obj.wind, memo:obj.memo, source:obj.source,
+        canonical_spot:obj.canonical_spot, sea_area:obj.sea_area, entered_at:obj.entered_at,
+        source_detail:obj.source_detail, prompt_version:obj.prompt_version, confidence:obj.confidence,
+      }, obj.source);
+      if(r.species||r.date){records.push(r);added++;}
+    }
+    persist();renderTable();updateStats();toast(`✓ ${added}件を読み込みました`);
+  };
+  reader.readAsText(file,'UTF-8');e.target.value='';
+}
+
+// W6-1：ダブルクォート処理を強化（"" エスケープ対応 / 前後空白を保持）
+function parseCSVLine(line){
+  const result=[];let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(inQ){
+      if(c==='"' && line[i+1]==='"'){ cur+='"'; i++; }   // エスケープされた "
+      else if(c==='"'){ inQ=false; }                       // クォート終了
+      else { cur+=c; }
+    } else {
+      if(c==='"'){ inQ=true; }
+      else if(c===','){ result.push(cur); cur=''; }
+      else { cur+=c; }
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+function clearAll(){
+  if(!records.length){toast('データがありません');return;}
+  if(!confirm(`${records.length}件を全削除しますか？`))return;
+  records=[];persist();renderTable();updateStats();toast('全データを削除しました');
+}
+
+let _toastTimer=null;
+function toast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  if(_toastTimer)clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>{t.classList.remove('show');_toastTimer=null;},2800);
+}
+
+function toggleListPanel(){
+  const panel=document.getElementById('list-collapsible');const label=document.getElementById('list-toggle-label');
+  const isOpen=panel.style.display!=='none';
+  panel.style.display=isOpen?'none':'block';
+  label.textContent=isOpen?'▼ 統計・操作パネルを表示':'▲ 統計・操作パネルを閉じる';
+}
+
+function refreshCount(){
+  document.getElementById('hcount').textContent=records.length;
+  const mini=document.getElementById('list-count-mini');if(mini)mini.textContent=records.length+'件';
+}
+
+// W6-1: master_catch.csv をソース・オブ・トゥルースとして読み込む。CSV_FP_KEY は _v2 化して旧キャッシュを破棄
+const CSV_URL='data/master_catch.csv',CSV_FP_KEY='fishing_csv_fp_v2';
+
+// W6-1：record_id を fingerprint に含めて UUID 変化も検知できるよう拡張
+function csvFingerprint(recs){
+  if(!recs.length)return '0';const n=recs.length;const f=recs[0],l=recs[n-1];
+  return `${n}:${f.record_id||''}:${f.date}:${f.species}:${f.size_cm}:${f.weight_kg}:${l.record_id||''}:${l.date}:${l.species}:${l.size_cm}:${l.weight_kg}`;
+}
+
+// ===== W6-1：UUID 保護マージ関数 =====
+// V5.5 ローカル records と GitHub master_catch.csv をマージし、
+// 既存 UUID を 100% 保護した最終 records 配列を返す
+function mergeWithMaster(localRecs, masterRecs){
+  // master 側を record_id でインデックス化
+  const masterById = {};
+  masterRecs.forEach(r => { if(r.record_id) masterById[r.record_id] = r; });
+
+  // 一致候補検出のための複合キー（record_id 不一致時のフォールバック）
+  function compoundKey(r){
+    return [r.date,r.species,r.size_cm,r.weight_kg,r.spot,r.time].join('|');
+  }
+  const masterByCompound = {};
+  masterRecs.forEach(r => { masterByCompound[compoundKey(r)] = r; });
+
+  let newCount=0, keptCount=0;
+  const merged = localRecs.map(local => {
+    // ① ローカルに record_id があり、master にも同じ UUID が存在する場合 → 既存扱い
+    if(local.record_id && masterById[local.record_id]){
+      keptCount++;
+      // entered_at は master 側を優先（最初の登録時刻を維持）
+      const master = masterById[local.record_id];
+      return {...local, entered_at: master.entered_at || local.entered_at};
+    }
+    // ② record_id 未割当 or master に該当 UUID なし → 複合キーで照合
+    const matched = masterByCompound[compoundKey(local)];
+    if(matched){
+      // 複合キー一致＝既存レコードを再発見した → master の UUID と entered_at を採用
+      keptCount++;
+      return {...local, record_id: matched.record_id, entered_at: matched.entered_at};
+    }
+    // ③ 完全新規 → ローカルで発行済みの UUID をそのまま使う
+    newCount++;
+    return local;
+  });
+
+  // master にあって local にない＝削除候補
+  const localIds = new Set(merged.map(r=>r.record_id));
+  const localCompound = new Set(merged.map(compoundKey));
+  const deletions = masterRecs.filter(m =>
+    !localIds.has(m.record_id) && !localCompound.has(compoundKey(m))
+  );
+
+  return { merged, newCount, keptCount, deletions };
+}
+
+// ===== W6-1：localStorage マイグレーション =====
+// 旧19列レコードに record_id / entered_at / 新7列を補充
+function migrateLegacyRecords(){
+  let migrated = 0;
+  records.forEach(r => {
+    if(!r.record_id){
+      r.record_id = (typeof crypto!=='undefined' && crypto.randomUUID) ? crypto.randomUUID() : _fallbackUUID();
+      migrated++;
+    }
+    if(!r.entered_at){
+      r.entered_at = jstISOString();
+    }
+    if(!('canonical_spot' in r)) r.canonical_spot = '';
+    if(!('sea_area' in r))       r.sea_area = '';
+    if(!('source_detail' in r))  r.source_detail = '';
+    if(!('prompt_version' in r)) r.prompt_version = '';
+    if(!('confidence' in r))     r.confidence = '';
+    // source を内部小文字化
+    if(r.source) r.source = normalizeSourceInternal(r.source);
+  });
+  if(migrated > 0){
+    try{persist();}catch(e){}
+    console.log(`[W6-1] Migrated ${migrated} legacy records (added record_id)`);
+  }
+}
+
+// W6-1：master_catch.csv（26列）と旧 fishing_data.csv（19列）の両方を読める
+function parseCSVText(text){
+  const cleaned=text.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const lines=cleaned.split('\n').filter(l=>l.trim());if(lines.length<2)return [];
+  // ヘッダーは小文字化（master_catch.csv 列名はもともと小文字）
+  const headers=lines[0].split(',').map(h=>h.trim().toLowerCase());
+  const result=[];
+  for(let i=1;i<lines.length;i++){
+    const vals=parseCSVLine(lines[i]);const obj={};
+    headers.forEach((h,idx)=>{obj[h]=vals[idx]||'';});
+    // 19列レガシーCSV（record_id 列なし）も受け入れる
+    if(obj.species||obj.date){
+      result.push(makeRecord(obj,obj.source));
+    }
+  }
+  return result;
+}
+
+function loadCSVfromServer(){
+  if(records.length===0){const e=document.getElementById('empty-state');if(e)e.innerHTML='<div class="empty-icon">⏳</div><div>data.csv を読み込み中...</div>';}
+  fetch(CSV_URL+'?t='+Date.now())
+    .then(r=>{if(!r.ok)throw new Error('CSV not found');return r.text();})
+    .then(text=>{
+      const loaded=parseCSVText(text);if(loaded.length===0)return;
+      const newFp=csvFingerprint(loaded);const prevFp=localStorage.getItem(CSV_FP_KEY)||'';
+      if(newFp===prevFp)return;
+      records=loaded;try{persist();}catch(e){}try{localStorage.setItem(CSV_FP_KEY,newFp);}catch(e){}
+      renderTable();updateStats();toast(`✓ data.csv を読み込みました（${loaded.length}件）`);
+    })
+    .catch(err=>{console.warn('CSV load failed:',err);if(records.length===0)toast('⚠ data.csv の読み込みができませんでした');});
+}
+
+function reloadCSV(){try{localStorage.removeItem(CSV_FP_KEY);}catch(e){}toast('🔄 data.csv を再読み込みしています...');loadCSVfromServer();}
+
+try{localStorage.removeItem('fishing_csv_count');}catch(e){}
+
+// ===== 一括ジオコーディング（Nominatim API） =====
+let _geocoding=false;
+async function startGeocoding(){
+  if(_geocoding){toast('ジオコーディング実行中です...');return;}
+  const targets=records.filter(r=>(!r.spot_lat||r.spot_lat==='')&&r.spot);
+  if(!targets.length){toast('座標未付与かつポイント名があるレコードはありません');return;}
+  if(!confirm(`${targets.length}件のレコードにNominatim APIで緯度経度を付与します。\n1件あたり約1秒かかります（合計約${targets.length}秒）。\n実行しますか？`))return;
+
+  _geocoding=true;const bar=document.getElementById('geocode-bar');bar.classList.add('show');
+
+  // spot名でまとめて重複APIリクエストを防止
+  const spotMap={};
+  targets.forEach(r=>{if(!spotMap[r.spot])spotMap[r.spot]=[];spotMap[r.spot].push(r.id);});
+  const spots=Object.keys(spotMap);let done=0,success=0,fail=0;
+
+  for(const spot of spots){
+    bar.textContent=`🌐 ジオコーディング中… ${done}/${spots.length} 完了 (成功:${success} 失敗:${fail}) — 「${spot}」`;
+    try{
+      const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(spot)}&format=json&limit=1&countrycodes=jp`;
+      const res=await fetch(url,{headers:{'Accept-Language':'ja'}});
+      if(res.ok){
+        const data=await res.json();
+        if(data.length>0){
+          const lat=parseFloat(data[0].lat),lng=parseFloat(data[0].lon);
+          const ns=findNearestStation(lat,lng);
+          spotMap[spot].forEach(id=>{
+            const rec=records.find(r=>r.id===id);
+            if(rec){rec.spot_lat=lat;rec.spot_lng=lng;rec.nearest_station=ns||'';}
+          });
+          success++;
+        }else{fail++;}
+      }else{fail++;}
+    }catch(e){fail++;console.warn('Nominatim error:',spot,e);}
+    done++;
+    // Nominatim利用規約：1秒に1リクエスト以下
+    await new Promise(r=>setTimeout(r,1100));
+  }
+  persist();renderTable();updateStats();
+  bar.textContent=`✓ ジオコーディング完了！ 成功:${success}地点 失敗:${fail}地点（${spots.length}地点処理）`;
+  setTimeout(()=>{bar.classList.remove('show');},5000);
+  _geocoding=false;toast(`✓ 座標付与完了 (成功:${success}件)`);
+}
+
+refreshCount();renderTable();updateStats();loadCSVfromServer();
+</script>
+
+</body>
+</html>
