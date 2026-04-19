@@ -1,5 +1,4 @@
 ﻿record_id,date,time,species,size_cm,weight_kg,count,bait,method,spot,spot_lat,spot_lng,nearest_station,tide,weather,temp,water_temp,wind,memo,source,canonical_spot,sea_area,entered_at,source_detail,prompt_version,confidence
-8e92e0b3-393a-42eb-a890-76b86bc31a35,2026-04-12,14:00,テスト_S4-2_E2E,60,3,1,,,室戸,,,室戸,,,,,,,manual,,,2026-04-19T21:37:49.548+09:00,,,
 95ff497f-fa75-4d2f-ba7d-855e3684ca42,2026-04-19,08:57,カツオ_W6-3_E2E,30,30,30,,底物泳がせ,室戸沖,,,室戸,,,30,30,30,,manual,,,2026-04-19T19:59:33.222+09:00,,,
 c71da824-abe4-4c68-a3cb-15b95edd95a9,2026-04-17,17:00,クエTEST,2,2,2,泳がせ,底物泳がせ,室戸沖,,,室戸,,,2,2,2,,manual,,,2026-04-19T17:07:25.483+09:00,,,
 a7b0b959-ca42-4682-ae0b-47ddebfa5c3a,2026-04-16,17:00,マダイ_W6_TEST,1,1,1,,,室戸,,,室戸,,,1,1,1,,manual,,,2026-04-19T17:01:48.835+09:00,,,
