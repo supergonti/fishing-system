@@ -297,10 +297,12 @@ th.chk-col,td.chk-col{width:36px;text-align:center;padding:6px 4px;}
         <span class="tag" id="mm-ジギング" onclick="pickMM(this,'ジギング')">ジギング</span>
       </div>
     </div>
-    <div class="frow"><label class="fl">ポイント</label><input type="text" class="fi" id="m-spot" placeholder="例: 沖ノ島 南礁"></div>
+    <div class="frow"><label class="fl">ポイント</label><input type="text" class="fi" id="m-spot" placeholder="例: 沖ノ島 南礁" oninput="try{updateStationHint()}catch(e){}" onblur="try{updateStationHint()}catch(e){}"></div>
+    <!-- S4-2: spot 入力の自動判定ヒント（観測地点） -->
+    <div class="frow" style="padding:2px 0 6px 0;margin-top:-4px"><div id="station-hint" style="font-size:12px;color:var(--text3);min-height:18px;padding-left:12px"></div></div>
     <div class="fgrid">
-      <div class="frow"><label class="fl">緯度（任意）</label><input type="number" class="fi" id="m-lat" placeholder="33.28" step="0.0001"></div>
-      <div class="frow"><label class="fl">経度（任意）</label><input type="number" class="fi" id="m-lng" placeholder="134.15" step="0.0001"></div>
+      <div class="frow"><label class="fl">緯度（任意）</label><input type="number" class="fi" id="m-lat" placeholder="33.28" step="0.0001" oninput="try{updateStationHint()}catch(e){}"></div>
+      <div class="frow"><label class="fl">経度（任意）</label><input type="number" class="fi" id="m-lng" placeholder="134.15" step="0.0001" oninput="try{updateStationHint()}catch(e){}"></div>
     </div>
     <div class="fgrid3">
       <div class="frow"><label class="fl">水温 ℃</label><input type="number" class="fi" id="m-wtemp" placeholder="24"></div>
@@ -501,6 +503,146 @@ function jstISOString(){
   return jst.toISOString().replace('Z','+09:00');
 }
 
+// ===== S4-2: spot mapping B データ & 正規化/引き当てヘルパー =====
+// data/b_mapping/ の JSON 2本を起動時 fetch で読み込み、
+// spot 文字列から nearest_station を自動付与する機能を提供する。
+// Python 側 engines/spot_classifier.py normalize_spot_name と挙動を整合させる。
+let SPOT_STATION_MAP = null;       // spot_station_map.json
+let SPOT_CANONICAL_RULES = null;   // spot_canonical_rules.json
+
+async function loadBMappingData(){
+  try{
+    const [smRes, crRes] = await Promise.all([
+      fetch('data/b_mapping/spot_station_map.json?_=' + Date.now()),
+      fetch('data/b_mapping/spot_canonical_rules.json?_=' + Date.now())
+    ]);
+    if(smRes && smRes.ok) SPOT_STATION_MAP = await smRes.json();
+    if(crRes && crRes.ok) SPOT_CANONICAL_RULES = await crRes.json();
+    console.log('[S4-2] B mapping loaded:',
+      'spots=', (SPOT_STATION_MAP && SPOT_STATION_MAP.spots ? SPOT_STATION_MAP.spots.length : 0),
+      'rules=', (SPOT_CANONICAL_RULES && SPOT_CANONICAL_RULES.rules ? SPOT_CANONICAL_RULES.rules.length : 0));
+    // ロード完了時にフォーム入力済みならヒント更新
+    try{ if(typeof updateStationHint==='function') updateStationHint(); }catch(e){}
+  } catch(e) {
+    console.warn('[S4-2] B mapping load failed (fallback to lat/lng only):', e);
+  }
+}
+
+// 4段正規化パイプライン（engines/spot_classifier.py normalize_spot_name と整合）:
+//   Step1: NFKC Unicode 正規化
+//   Step2: 空白・括弧除去（spot_canonical_rules.json stopwords）
+//   Step3: 県名プレフィックス除去（長い順、残余が空にならない場合のみ剥離）
+//   Step4: 別名辞書で完全一致変換（rules.from → rules.to）
+function canonicalizeSpot(input){
+  if(input===null || input===undefined) return '';
+  let s = String(input);
+  // Step1: NFKC
+  try{ s = s.normalize('NFKC'); }catch(e){}
+  if(!SPOT_CANONICAL_RULES){
+    return s.trim();
+  }
+  const sw = SPOT_CANONICAL_RULES.stopwords || {};
+  // Step2: 空白除去 → 括弧除去
+  for(const ws of (sw.whitespace || [])){
+    if(ws) s = s.split(ws).join('');
+  }
+  for(const br of (sw.brackets || [])){
+    if(br) s = s.split(br).join('');
+  }
+  if(s === '') return '';
+  // Step3: 県名プレフィックス除去（長い順、残余が空にならない場合のみ一度だけ剥離）
+  const prefixes = [...(sw.prefixes || [])].sort((a,b)=>b.length - a.length);
+  for(const pref of prefixes){
+    if(pref && s.startsWith(pref) && s.length > pref.length){
+      s = s.slice(pref.length);
+      break;
+    }
+  }
+  // Step4: 別名辞書（完全一致で to に置換）
+  for(const r of (SPOT_CANONICAL_RULES.rules || [])){
+    if(r && typeof r.from === 'string' && r.from === s && typeof r.to === 'string'){
+      s = r.to;
+      break;
+    }
+  }
+  return s;
+}
+
+// spot 入力文字列から nearest_station を引き当て
+// 優先順位:
+//   [1] canonicalizeSpot() 結果 === entry.canonical_spot の完全一致
+//   [2] raw_spots 配列に (rawInput または canonical) が完全一致で含まれるエントリ
+//   [3] raw_spots 配列への部分一致（canonical と raw の相互 includes、最長一致優先）
+// マッチなし → null を返す（呼び出し側で findNearestStation(lat,lng) へフォールバック）
+function findStationBySpotName(spotInput){
+  if(!spotInput || !SPOT_STATION_MAP) return null;
+  const spots = SPOT_STATION_MAP.spots || [];
+  if(spots.length === 0) return null;
+  const rawInput = String(spotInput).trim();
+  const canonical = canonicalizeSpot(spotInput);
+
+  // [1] canonical_spot 自身との完全一致
+  if(canonical){
+    for(const entry of spots){
+      if(entry && entry.canonical_spot === canonical){
+        return entry.nearest_station || null;
+      }
+    }
+  }
+  // [2] raw_spots 完全一致（正規化前後どちらも試す）
+  for(const entry of spots){
+    const rs = entry && entry.raw_spots;
+    if(!Array.isArray(rs)) continue;
+    if(rs.includes(rawInput) || (canonical && rs.includes(canonical))){
+      return entry.nearest_station || null;
+    }
+  }
+  // [3] 部分一致（最長一致優先、canonical 空の場合はスキップ）
+  if(!canonical) return null;
+  let bestMatch = null, bestLen = 0;
+  for(const entry of spots){
+    const rs = entry && entry.raw_spots;
+    if(!Array.isArray(rs)) continue;
+    for(const r of rs){
+      if(!r || typeof r !== 'string') continue;
+      if(canonical.includes(r) || r.includes(canonical)){
+        if(r.length > bestLen){
+          bestLen = r.length;
+          bestMatch = entry.nearest_station || null;
+        }
+      }
+    }
+  }
+  return bestMatch || null;
+}
+
+// 手動入力フォームの spot 欄と #station-hint を連動させる
+function updateStationHint(){
+  const spotEl = document.getElementById('m-spot');
+  const hintEl = document.getElementById('station-hint');
+  if(!spotEl || !hintEl) return;
+  const v = (spotEl.value || '').trim();
+  if(!v){ hintEl.textContent = ''; return; }
+  if(!SPOT_STATION_MAP){
+    hintEl.textContent = '→ 観測地点: マッピング読み込み中…';
+    return;
+  }
+  const station = findStationBySpotName(v);
+  if(station){
+    hintEl.textContent = `→ 観測地点: ${station}（自動判定）`;
+  } else {
+    // lat/lng が既に入っていれば findNearestStation が使える
+    const lat = parseFloat(document.getElementById('m-lat') && document.getElementById('m-lat').value);
+    const lng = parseFloat(document.getElementById('m-lng') && document.getElementById('m-lng').value);
+    const fallback = (!isNaN(lat) && !isNaN(lng)) ? findNearestStation(lat, lng) : null;
+    if(fallback){
+      hintEl.textContent = `→ 観測地点: ${fallback}（座標から推定）`;
+    } else {
+      hintEl.textContent = '→ 観測地点: 自動判定不可（座標を入力すると最近傍引き当て）';
+    }
+  }
+}
+
 const KEY='fishing_v2';
 let records=[],selMM='',queue=[];
 function load(){try{records=JSON.parse(localStorage.getItem(KEY))||[];}catch{records=[];}}
@@ -508,6 +650,8 @@ function persist(){try{localStorage.setItem(KEY,JSON.stringify(records));}catch(
 load();
 // W6-1：レガシー19列レコードを 26列形式に補完（起動時1回）
 migrateLegacyRecords();
+// S4-2: B mapping JSON 2本を非同期 fetch（fire-and-forget、ロード完了で hint 更新）
+loadBMappingData();
 function pad(n){return String(n).padStart(2,'0');}
 let _idCounter=0;
 function genId(){return Date.now()*1000+(_idCounter++%1000);}
@@ -544,10 +688,18 @@ function findNearestStation(lat,lng){
   return minDist<=MAX_DIST_KM?nearest:null;
 }
 
-// ===== レコード生成ファクトリ（W6-1：26列対応）=====
+// ===== レコード生成ファクトリ（W6-1：26列対応 / S4-2：spot mapping 引き当て）=====
 function makeRecord(src,source){
   const lat=toNum(src.spot_lat),lng=toNum(src.spot_lng);
-  const ns=src.nearest_station||findNearestStation(lat,lng)||'';
+  // S4-2: nearest_station 決定の 4段階フォールバック
+  //   [1] src.nearest_station が既に値あり → 保持（CSV読込・編集時の上書き防止）
+  //   [2] spot 名 → spot_station_map.json で引き当て（座標不要）
+  //   [3] lat/lng → findNearestStation（既存の Haversine 8地点）
+  //   [4] それでも null なら空文字
+  let ns = src.nearest_station;
+  if(!ns){
+    ns = findStationBySpotName(src.spot) || findNearestStation(lat,lng) || '';
+  }
   // record_id: 既存値があれば保持（CSV読込・編集時）、なければUUID v4 新規発行
   const recordId = src.record_id || (typeof crypto!=='undefined' && crypto.randomUUID ? crypto.randomUUID() : _fallbackUUID());
   // entered_at: 既存値があれば保持、なければJST現在時刻
