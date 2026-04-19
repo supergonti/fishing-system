@@ -1,23 +1,24 @@
 name: 室戸沖釣果DB自動更新 / Build Muroto Fishing Database
 
 # ─── トリガー ───────────────────────────────────────
+# W6-1（2026-04-19）：V5.5 の書込先を master_catch.csv に切り替えたことにより、
+# 旧 push トリガー（fishing_data.csv 等）は一時無効化する。
+# W6-2 で master_catch.csv をトリガーにした新設計のパイプラインに再構築する予定。
 on:
-  # data/ フォルダ内のCSVが更新されたとき自動実行
-  push:
-    paths:
-      - 'data/fishing_data.csv'
-      - 'data/fishing_condition_db.csv'
-      - 'data/muroto_offshore_current_all.csv'
-    branches:
-      - main
-
-  # 手動実行
+  # 手動実行のみ（W6-2 完成まで自動実行は停止）
   workflow_dispatch:
 
-  # 毎週月曜 UTC 1:00 (JST 10:00) に定期実行
-  # ※ 上流の2リポジトリが更新された後のタイミング
-  schedule:
-    - cron: '0 1 * * 1'
+  # --- 以下は W6-2 完成まで無効化 ---
+  # push:
+  #   paths:
+  #     - 'data/fishing_data.csv'
+  #     - 'data/fishing_condition_db.csv'
+  #     - 'data/muroto_offshore_current_all.csv'
+  #   branches:
+  #     - main
+  #
+  # schedule:
+  #   - cron: '0 1 * * 1'
 
 # ─── ジョブ ─────────────────────────────────────────
 jobs:
