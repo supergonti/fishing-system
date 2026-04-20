@@ -44,6 +44,13 @@ CURRENT_DISTANCE_THRESHOLD_KM = 50.0
 # "その他" sentinel（W3-1 §4.7 案3：B対応表では "その他"）
 OTHER_SENTINEL = "その他"
 
+# "不明" sentinel（W7-1 §1, 2026-04-20 追加）
+# 自動分類不能（現時点では座標欠落 ＋ 非空 canonical）で、人レビューが必要な状態。
+# "その他"（座標ありで閾値超過 = 分類として正解）と区別するための第二の sentinel。
+# CI パイプラインの「不明行検出ガード」が nearest_station=="不明" の行を検出したら
+# push をブロックする設計（W7-1 §4-2, §4-3）。
+UNKNOWN_SENTINEL = "不明"
+
 # 地球半径（km）
 EARTH_RADIUS_KM = 6371.0
 
@@ -209,16 +216,32 @@ class SpotClassifier:
         """
         raw_spot を canonical に正規化し、lat/lng から最近傍を割り当てる。
 
-        lat/lng が None の場合は station/point は None のまま返す
-        （canonical だけは返る）。
+        戻り値 nearest_station の判定境界（W7-1 §4-1 の表）：
+          - raw が空文字列 / None     : None        （空は空のまま扱う）
+          - raw あり＋座標欠落        : "不明"      （W7-1 新、人レビュー必要）
+          - raw あり＋座標あり＋>300km: "その他"    （閾値超過、分類として正解）
+          - raw あり＋座標あり＋≤300km: station 名
         """
         canonical = self.normalize_spot_name(raw_spot)
 
-        if lat is None or lng is None or canonical == "":
+        # 空入力は早期 return（None のまま返す、UNKNOWN にはしない）
+        if canonical == "":
             return ClassifyResult(
                 raw_spot=raw_spot if raw_spot is not None else "",
-                canonical_spot=canonical,
+                canonical_spot="",
                 nearest_station=None,
+                distance_km=None,
+                current_point=None,
+                current_distance_km=None,
+            )
+
+        # 座標欠落：canonical は取れているが距離判定が不能なので UNKNOWN_SENTINEL を返す。
+        # （substring fallback は W7-2 で追加、本フェーズではまだ None→"不明" 昇格のみ）
+        if lat is None or lng is None:
+            return ClassifyResult(
+                raw_spot=raw_spot,
+                canonical_spot=canonical,
+                nearest_station=UNKNOWN_SENTINEL,
                 distance_km=None,
                 current_point=None,
                 current_distance_km=None,

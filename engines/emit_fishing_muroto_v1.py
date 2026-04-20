@@ -106,6 +106,10 @@ def build_row(master_rec: dict, c3_index: dict, c4_index: dict) -> list:
         out.append(v if v is not None else "")
 
     # 気象: C③ LEFT JOIN
+    # W7-1 note: nearest_station が "不明" の行は、C③（fishing_condition_db.csv）
+    # に ("不明") 行が存在しないため、c3_index.get() が None を返し空JOINとなる
+    # （気象15列は空文字列）。実害はないが、CI の「不明行検出ガード」で push 前に
+    # 弾かれる設計（.github/workflows/sync_after_*.yml 参照）。
     key_c3 = (master_rec.get("date", ""), master_rec.get("nearest_station", ""))
     c3 = c3_index.get(key_c3)
 
