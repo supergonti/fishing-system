@@ -26,6 +26,10 @@ on:
   push:
     paths:
       - 'data/muroto_offshore_current_all.csv'
+      # W6-3-fix（2026-04-20）: update_data.yml が CSV 差分ゼロでも JS を更新するので
+      # JS パスも trigger に含める。CSV 側だけだと 4/20 朝のように CSV 差分ゼロ時に
+      # 連鎖が発火しない不具合が出る。
+      - 'data/js/muroto_offshore_current_dashboard_data.js'
     branches:
       - main
   workflow_dispatch:  # 手動再生成も可
@@ -54,9 +58,20 @@ jobs:
       - name: 依存パッケージをインストール
         run: pip install -r requirements.txt
 
+      # --- W6-3-fix（2026-04-20）: 気象データも差分取得 ---
+      # 当日追加された master_catch レコードは、前日分の sync_after_master_push
+      # 時点では sync_condition_db の `<= yesterday` フィルタで除外され気象欄が
+      # 空欄のまま残っている。翌日朝のこの連鎖タイミングで改めて気象を取得して
+      # 空欄を埋める（sync_condition_db は keep-last 重複排除で冪等）。
+      - name: 気象データ差分取得 (sync_condition_db.py)
+        run: |
+          python scripts/sync_condition_db.py \
+            --master    data/master_catch.csv \
+            --condition data/fishing_condition_db.csv
+
       # --- emit_all で派生CSV群を再生成 ---
-      # 海流データ（C④）が更新されたので、これを参照する fishing_data /
-      # fishing_muroto_v1 / fishing_integrated を再ビルドする。
+      # 海流データ（C④）と気象データ（C③）が更新されたので、これを参照する
+      # fishing_data / fishing_muroto_v1 / fishing_integrated を再ビルドする。
       - name: emit_all で派生CSV群を再生成
         run: |
           python -m engines.emit_all \
@@ -78,6 +93,7 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+          git add data/fishing_condition_db.csv
           git add data/fishing_data.csv
           git add data/fishing_integrated.csv
           git add data/fishing_muroto_v1.csv
