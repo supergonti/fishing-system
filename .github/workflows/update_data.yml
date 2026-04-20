@@ -59,8 +59,14 @@ jobs:
             echo "取得日付: $TARGET"
             python scripts/main.py --date "$TARGET"
           else
-            TARGET=$(date -d "yesterday" +%Y-%m-%d)
-            echo "取得日付: $TARGET（前日）"
+            # W6-3-fix（2026-04-20）: TZ=Asia/Tokyo で JST 基準の「前日」を計算。
+            # 旧実装は UTC 基準で `date -d "yesterday"` を評価していたため、
+            # 06:30 JST = 21:30 UTC の runner では UTC の yesterday が
+            # JST の「一昨日」扱いになっており、4/20 朝に 4/18 を取得する
+            # バグがあった（sync_after_master_push で取得済の日と衝突して
+            # 差分ゼロ → sync_after_current_update が発火しない副作用）。
+            TARGET=$(TZ=Asia/Tokyo date -d "yesterday" +%Y-%m-%d)
+            echo "取得日付: $TARGET（前日 / JST 基準）"
             python scripts/main.py --date "$TARGET"
           fi
 
@@ -83,7 +89,8 @@ jobs:
             if [ -n "${{ github.event.inputs.target_date }}" ]; then
               DATE_LABEL="${{ github.event.inputs.target_date }}"
             else
-              DATE_LABEL=$(date -d "yesterday" +%Y-%m-%d)
+              # W6-3-fix: DATE_LABEL も JST 基準で算出（TARGET と一致させる）
+              DATE_LABEL=$(TZ=Asia/Tokyo date -d "yesterday" +%Y-%m-%d)
             fi
             # W6-3（2026-04-19）: [skip ci] を外す。本コミットを契機に
             # sync_after_current_update.yml を起動させ、emit_all + analyze_engine を
