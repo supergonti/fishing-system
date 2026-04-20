@@ -169,6 +169,12 @@ th.chk-col,td.chk-col{width:36px;text-align:center;padding:6px 4px;}
 .geocode-bar{background:rgba(108,52,131,0.08);border:1px solid rgba(108,52,131,0.3);border-radius:6px;padding:8px 14px;margin-bottom:10px;font-size:12px;color:var(--purple);display:none;}
 .geocode-bar.show{display:block;}
 .st-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;background:rgba(108,52,131,0.1);color:var(--purple);border:1px solid rgba(108,52,131,0.25);}
+/* W7-3: レビュー保留マーカー（amber）と最近傍地点プルダウン */
+.ns-cell{position:relative;display:inline-block;}
+.ns-sel{font-size:10px;padding:1px 4px;background:#fff;border:1px solid var(--border2);border-radius:3px;color:var(--text);cursor:pointer;max-width:88px;}
+.ns-sel:hover{border-color:var(--gold);}
+.ns-sel.ns-empty{color:var(--text3);}
+.review-pending-marker{position:absolute;top:-4px;right:-6px;color:#f5a623;font-size:11px;font-weight:bold;line-height:1;text-shadow:0 0 1px rgba(255,255,255,.8);pointer-events:none;}
 @media(max-width:900px){.layout{grid-template-columns:1fr;}.panel-left{border-right:none;border-bottom:1px solid var(--border2);max-height:none;}.panel-right{max-height:none;}}
 @media(max-width:600px){.header{padding:8px 12px;}.header-title{font-size:17px;letter-spacing:2px;}.header-sub{display:none;}.tab-btn{padding:8px 10px;font-size:11px;letter-spacing:0;}.stats-bar{gap:8px;padding:7px 10px;flex-wrap:wrap;}.sv{font-size:16px;}.sl{font-size:9px;}.bulk-bar{padding:6px 8px;gap:5px;}.bulk-bar .btn{padding:6px 10px;font-size:11px;}.table-wrap{height:680px;}}
 </style>
@@ -347,7 +353,7 @@ th.chk-col,td.chk-col{width:36px;text-align:center;padding:6px 4px;}
         <input type="file" id="csv-imp" accept=".csv" style="display:none" onchange="importCSV(event)">
         <button class="btn btn-import" onclick="reloadCSV()" style="padding:10px 12px;font-size:12px;" title="フィンガープリントをリセットしてdata.csvを再読込">🔄 CSV再読込</button>
         <button class="btn btn-csv" onclick="exportCSV()">📥 CSVで保存</button>
-        <button class="btn" id="btn-gh-push" onclick="uploadToGitHub()" style="background:#24292f;color:#7ee787;border:1px solid rgba(126,231,135,.35);padding:10px 14px;font-size:12px;" title="GitHub に fishing_data.csv を直接アップロード">🚀 GitHubに保存</button>
+        <button class="btn" id="btn-gh-push" onclick="uploadToGitHubDispatch()" style="background:#24292f;color:#7ee787;border:1px solid rgba(126,231,135,.35);padding:10px 14px;font-size:12px;" title="GitHub に保存（レビュー保留があれば同一 commit で辞書も更新）">🚀 GitHubに保存</button>
         <button class="btn" onclick="showGHTokenModal()" style="background:#24292f;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1);padding:10px 10px;font-size:12px;" title="GitHub トークン設定">⚙</button>
         <button class="btn btn-danger" onclick="clearAll()">全削除</button>
       </div>
@@ -988,8 +994,7 @@ function renderTable(){
 
   document.getElementById('tbody').innerHTML=list.map(r=>{
     const dup=dupIds.has(r.id),chk=selectedIds.has(r.id);
-    const nsCell=r.nearest_station?`<span class="st-badge">${r.nearest_station}</span>`:
-      (r.spot_lat?'<span style="color:var(--text3);font-size:10px;">範囲外</span>':'—');
+    const nsCell=buildNsSelectCell(r);
     return`<tr class="${dup?'dup-row':''}" id="tr-${r.id}">
       <td class="chk-col"><input type="checkbox" class="row-chk" ${chk?'checked':''} onchange="toggleRow(${r.id},this.checked)"></td>
       <td class="dt">${r.date?r.date.slice(2).replace(/-/g,'/'):'—'}</td>
@@ -1505,6 +1510,476 @@ async function startGeocoding(){
   setTimeout(()=>{bar.classList.remove('show');},5000);
   _geocoding=false;toast(`✓ 座標付与完了 (成功:${success}件)`);
 }
+
+// ============================================================
+// W7-3: レビューUI + 辞書自動成長（Git Data API でブラウザ完結同一 commit）
+// 設計準拠: W7-3_設計案決裁_司令塔5_20260420.md（案 A-2 / Q5 既存ボタン兼用）
+//          計画書_司令塔5_釣り場分類人機協調改革_20260420.md §3-3, §3-4
+// ============================================================
+const W7_RULES_PATH = 'data/b_mapping/spot_canonical_rules.json';
+const W7_REVIEW_OPTIONS = ['', '室戸', '高知', '足摺', '宇和島', '松山', '来島', '高松', '阿南', '不明', 'その他'];
+
+// record_id -> 新しい nearest_station 値（保留中のみ）
+const pendingReviews = new Map();
+
+// 正規化ルール（spot_canonical_rules.json）のキャッシュ。初回 fetch 後に格納
+let _canonicalRulesCache = null;
+
+// URL パラメータから開発モード取得
+function _w7IsDryRun(){ try{ return new URLSearchParams(location.search).get('dryrun')==='1'; }catch(e){ return false; } }
+function _w7IsParityMode(){ try{ return new URLSearchParams(location.search).get('parity')==='1'; }catch(e){ return false; } }
+
+// ------------------------------------------------------------
+// ① 最近傍地点セル：<select> + amber マーカー
+// ------------------------------------------------------------
+function buildNsSelectCell(r){
+  const cur = r.nearest_station || '';
+  const pending = pendingReviews.get(r.record_id);
+  const displayVal = (pending !== undefined) ? pending : cur;
+  const hasPending = (pending !== undefined && pending !== cur);
+  const isEmpty = (displayVal === '' || displayVal === null);
+  const opts = W7_REVIEW_OPTIONS.map(v => {
+    const label = (v === '') ? '—' : v;
+    const sel = (v === displayVal) ? ' selected' : '';
+    return `<option value="${v}"${sel}>${label}</option>`;
+  }).join('');
+  const selectHtml = `<select class="ns-sel${isEmpty?' ns-empty':''}" data-rid="${r.record_id||''}" onchange="markReviewPending(this.getAttribute('data-rid'), this.value, this)" title="最近傍地点（変更するとレビュー保留になる）">${opts}</select>`;
+  const markerHtml = hasPending ? '<span class="review-pending-marker" title="レビュー保留中（未保存）">●</span>' : '';
+  return `<span class="ns-cell">${selectHtml}${markerHtml}</span>`;
+}
+
+// プルダウン onchange ハンドラ
+function markReviewPending(rid, newVal, selEl){
+  if(!rid) return;
+  const r = records.find(rec => rec.record_id === rid);
+  if(!r){
+    console.warn('[W7-3] record_id not found:', rid);
+    return;
+  }
+  const cur = r.nearest_station || '';
+  if(newVal === cur){
+    // 元の値に戻した → 保留から削除
+    pendingReviews.delete(rid);
+  } else {
+    pendingReviews.set(rid, newVal);
+  }
+  // マーカーと ns-empty クラスを局所更新（renderTable フル再描画を避ける）
+  if(selEl){
+    selEl.classList.toggle('ns-empty', newVal === '');
+    const cell = selEl.closest('.ns-cell');
+    if(cell){
+      const old = cell.querySelector('.review-pending-marker');
+      const hasPending = (newVal !== cur);
+      if(hasPending && !old){
+        const m = document.createElement('span');
+        m.className = 'review-pending-marker';
+        m.title = 'レビュー保留中（未保存）';
+        m.textContent = '●';
+        cell.appendChild(m);
+      } else if(!hasPending && old){
+        old.remove();
+      }
+    }
+  }
+  updateReviewButtonBadge();
+}
+
+// 「🚀 GitHubに保存 (N件保留)」ラベル動的更新
+function updateReviewButtonBadge(){
+  const btn = document.getElementById('btn-gh-push');
+  if(!btn) return;
+  if(btn.disabled && /アップロード中/.test(btn.textContent)) return;
+  const n = pendingReviews.size;
+  btn.textContent = n > 0 ? `🚀 GitHubに保存 (${n}件保留)` : '🚀 GitHubに保存';
+}
+
+// ------------------------------------------------------------
+// ② 4段正規化の JS 実装（Python 側 normalize_spot_name と parity）
+// ------------------------------------------------------------
+function normalizeSpotNameJs(rawSpot){
+  if(rawSpot === null || rawSpot === undefined) return '';
+  let s = String(rawSpot);
+  // Step1: NFKC
+  s = s.normalize('NFKC');
+  // Step2: 空白記号除去（whitespace + brackets）
+  const doc = _canonicalRulesCache;
+  if(!doc){ console.warn('[W7-3] normalizeSpotNameJs: rules cache not loaded'); return s; }
+  const ws = (doc.stopwords && doc.stopwords.whitespace) || [];
+  const brk = (doc.stopwords && doc.stopwords.brackets) || [];
+  ws.forEach(w => { s = s.split(w).join(''); });
+  brk.forEach(b => { s = s.split(b).join(''); });
+  if(s === '') return '';
+  // Step3: 県名プレフィックス除去（残余が空にならない場合のみ、長い順）
+  const prefixes = ((doc.stopwords && doc.stopwords.prefixes) || []).slice().sort((a,b)=>b.length-a.length);
+  for(const pref of prefixes){
+    if(s.startsWith(pref) && s.length > pref.length){
+      s = s.slice(pref.length);
+      break;
+    }
+  }
+  // Step4: 別名辞書（完全一致）
+  const rules = (doc.rules || []).filter(r => r.type === 'alias');
+  for(const rule of rules){
+    if(rule.from === s){ s = rule.to; break; }
+  }
+  return s;
+}
+
+// spot_canonical_rules.json を fetch してキャッシュ（初回のみ）
+async function _loadCanonicalRules(force){
+  if(_canonicalRulesCache && !force) return _canonicalRulesCache;
+  try{
+    const r = await fetch('./' + W7_RULES_PATH + '?t=' + Date.now());
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    _canonicalRulesCache = await r.json();
+  }catch(e){
+    console.warn('[W7-3] spot_canonical_rules.json fetch failed:', e);
+    _canonicalRulesCache = { rules: [], stopwords: {} };
+  }
+  return _canonicalRulesCache;
+}
+
+// ------------------------------------------------------------
+// ③ 衝突検出と冪等マージ（Python 側 spot_canonical_editor と parity）
+// ------------------------------------------------------------
+function mergeRulesAndDetectConflict(existingDoc, pendingPairs){
+  const rules = Array.isArray(existingDoc.rules) ? existingDoc.rules.slice() : [];
+  const fromIndex = new Map();
+  rules.forEach((r, i) => { if(r && r.from) fromIndex.set(r.from, {i, rule:r}); });
+  const additions = [];
+  const skipped = [];
+  const conflicts = [];
+  const nowIso = _jstIsoSeconds();
+  pendingPairs.forEach(p => {
+    const from = p[0];
+    const to = p[1];
+    if(from === to){ skipped.push({from, to, reason:'self-mapping'}); return; }
+    if(fromIndex.has(from)){
+      const existing = fromIndex.get(from).rule;
+      if(existing.to === to){ skipped.push({from, to, reason:'already_exists'}); }
+      else { conflicts.push({from, existingTo: existing.to, newTo: to}); }
+      return;
+    }
+    const newRule = { from, to, type:'alias', reason:'user_review', added_at: nowIso, added_by:'user_review' };
+    additions.push(newRule);
+    fromIndex.set(from, {i: rules.length + additions.length - 1, rule: newRule});
+  });
+  const newDoc = Object.assign({}, existingDoc);
+  newDoc.rules = rules.concat(additions);
+  if(additions.length > 0){
+    newDoc.updated_at = nowIso;
+    newDoc.version = _bumpPatch(existingDoc.version || '1.0.0');
+  }
+  return { newDoc, additions, skipped, conflicts };
+}
+
+function _bumpPatch(v){
+  const parts = String(v || '').split('.');
+  if(parts.length === 3 && parts.every(p => /^\d+$/.test(p))){
+    parts[2] = String(parseInt(parts[2], 10) + 1);
+    return parts.join('.');
+  }
+  return v;
+}
+
+function _jstIsoSeconds(){
+  // JST ISO8601 秒精度（例: 2026-04-20T23:59:00+09:00）
+  const d = new Date();
+  const pad2 = n => String(n).padStart(2,'0');
+  const jst = new Date(d.getTime() + 9*60*60*1000);
+  return `${jst.getUTCFullYear()}-${pad2(jst.getUTCMonth()+1)}-${pad2(jst.getUTCDate())}T${pad2(jst.getUTCHours())}:${pad2(jst.getUTCMinutes())}:${pad2(jst.getUTCSeconds())}+09:00`;
+}
+
+function _rulesDocToJsonText(doc){
+  // 既存フォーマット厳守: UTF-8, BOM なし, LF, indent=2, ensure_ascii=False 相当（JSON.stringify は Unicode そのまま）, 末尾改行
+  return JSON.stringify(doc, null, 2) + '\n';
+}
+
+// ------------------------------------------------------------
+// ④ Git Data API 各段階
+// ------------------------------------------------------------
+async function _ghGet(path, token){
+  const res = await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/${path}`, {
+    method:'GET',
+    headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}
+  });
+  if(!res.ok){
+    const body = await res.text().catch(()=>'');
+    const err = new Error(`GET ${path} HTTP ${res.status}: ${body.slice(0,200)}`);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+async function _ghPost(path, token, body){
+  const res = await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/${path}`, {
+    method:'POST',
+    headers:{'Authorization':'token '+token,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
+    body: JSON.stringify(body)
+  });
+  if(!res.ok){
+    const b = await res.text().catch(()=>'');
+    const err = new Error(`POST ${path} HTTP ${res.status}: ${b.slice(0,200)}`);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+async function _ghPatch(path, token, body){
+  const res = await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/${path}`, {
+    method:'PATCH',
+    headers:{'Authorization':'token '+token,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
+    body: JSON.stringify(body)
+  });
+  if(!res.ok){
+    const b = await res.text().catch(()=>'');
+    const err = new Error(`PATCH ${path} HTTP ${res.status}: ${b.slice(0,200)}`);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+async function _ghCreateBlob(token, content){
+  // content は UTF-8 文字列。blob は base64 で投げる
+  const b64 = toBase64UTF8(content);
+  return _ghPost('git/blobs', token, { content: b64, encoding: 'base64' });
+}
+async function _ghCreateTree(token, baseTreeSha, entries){
+  return _ghPost('git/trees', token, { base_tree: baseTreeSha, tree: entries });
+}
+async function _ghCreateCommit(token, message, treeSha, parentSha){
+  return _ghPost('git/commits', token, { message, tree: treeSha, parents: [parentSha] });
+}
+async function _ghUpdateRef(token, refPath, sha){
+  // force=false で並行 push 衝突を検出
+  return _ghPatch(`git/refs/${refPath}`, token, { sha, force: false });
+}
+
+// ------------------------------------------------------------
+// ⑤ PAT スコープ診断
+// ------------------------------------------------------------
+async function _ghDiagPatScope(token){
+  try{
+    // Git Data API の読み取りが通れば repo scope 相当と判定
+    await _ghGet('git/refs/heads/main', token);
+    return { ok: true };
+  }catch(e){
+    return { ok: false, error: e.message };
+  }
+}
+
+// ------------------------------------------------------------
+// ⑥ ディスパッチ（既存ボタン兼用）
+// ------------------------------------------------------------
+async function uploadToGitHubDispatch(){
+  if(pendingReviews.size > 0){
+    await uploadReviewToGitHubAtomic();
+  } else {
+    await uploadToGitHub();
+  }
+}
+
+// ------------------------------------------------------------
+// ⑦ レビュー保存（Git Data API で同一 commit）
+// ------------------------------------------------------------
+async function uploadReviewToGitHubAtomic(){
+  if(!records.length){ toast('データがありません'); return; }
+  if(pendingReviews.size === 0){ toast('保留中のレビューはありません'); return; }
+
+  const token = localStorage.getItem(GH_TOKEN_KEY);
+  if(!token){ toast('⚙ まずトークンを設定してください'); showGHTokenModal(); return; }
+
+  const btn = document.getElementById('btn-gh-push');
+  if(btn){ btn.disabled = true; btn.textContent = '📤 アップロード中...'; }
+
+  const dryRun = _w7IsDryRun();
+  try{
+    // Step 1: 正規化ルール最新化
+    await _loadCanonicalRules(true);
+
+    // Step 2: レビュー保留を records に反映（dry-run でも）＋ pending pairs（辞書追加候補）を構築
+    // 学習の非対称性：不明 → 実地点 のみ辞書化
+    const pendingPairs = [];
+    const recById = new Map(records.map(r => [r.record_id, r]));
+    for(const [rid, newVal] of pendingReviews.entries()){
+      const r = recById.get(rid);
+      if(!r){ console.warn('[W7-3] pending record_id missing:', rid); continue; }
+      const oldVal = r.nearest_station || '';
+      // 反映
+      r.nearest_station = newVal || '';
+      // 辞書候補：旧が「不明」、新が実地点
+      if(oldVal === '不明' && newVal && newVal !== '不明' && newVal !== 'その他'){
+        const canonical = normalizeSpotNameJs(r.spot || '');
+        if(canonical && canonical !== newVal){
+          pendingPairs.push([canonical, newVal]);
+        }
+      }
+    }
+
+    // Step 3: 現在の HEAD / base tree / 既存 rules を取得
+    const ref = await _ghGet('git/refs/heads/main', token);
+    const baseSha = ref.object && ref.object.sha;
+    if(!baseSha) throw new Error('base_sha 解決失敗');
+    const baseCommit = await _ghGet('git/commits/' + baseSha, token);
+    const baseTree = baseCommit.tree && baseCommit.tree.sha;
+    if(!baseTree) throw new Error('base_tree 解決失敗');
+
+    const rulesContents = await _ghGet('contents/' + W7_RULES_PATH, token);
+    const rulesB64 = (rulesContents.content || '').replace(/\n/g,'');
+    const rulesBinStr = atob(rulesB64);
+    const rulesBytes = new Uint8Array(rulesBinStr.length);
+    for(let i=0;i<rulesBinStr.length;i++) rulesBytes[i] = rulesBinStr.charCodeAt(i);
+    const rulesText = new TextDecoder('utf-8').decode(rulesBytes);
+    const remoteRulesDoc = JSON.parse(rulesText);
+
+    // Step 4: 衝突検出 + 冪等マージ
+    const mergeResult = mergeRulesAndDetectConflict(remoteRulesDoc, pendingPairs);
+    if(mergeResult.conflicts.length > 0){
+      const lines = mergeResult.conflicts.map(c => `  ${c.from} : 既存=${c.existingTo} → 新=${c.newTo}`).join('\n');
+      alert(`⚠ 辞書衝突（W7-3 ConflictError）\n\n下記の from キーに異なる to が既存です。push を中止しました。\n\n${lines}\n\nspot_canonical_rules.json を手で確認してください（計画書 §3-3 衝突ルール）。`);
+      // 緊急停止：pending は残す（ユーザーが修正判断）
+      return;
+    }
+
+    // Step 5: master 既存 state を GET して merge（UUID保護、削除検出）
+    const masterGet = await _ghGet('contents/' + GH_FILE, token);
+    const masterB64 = (masterGet.content || '').replace(/\n/g,'');
+    const masterBinStr = atob(masterB64);
+    const masterBytes = new Uint8Array(masterBinStr.length);
+    for(let i=0;i<masterBinStr.length;i++) masterBytes[i] = masterBinStr.charCodeAt(i);
+    const masterText = new TextDecoder('utf-8').decode(masterBytes);
+    const masterRecs = parseCSVText(masterText);
+    const mergedResult = mergeWithMaster(records, masterRecs);
+    if(mergedResult.deletions.length > 0){
+      const examples = mergedResult.deletions.slice(0,3).map(r=>`${r.date} ${r.species}`).join(' / ');
+      if(!confirm(`⚠ master_catch.csv に存在し、V5.5 ローカルに無いレコードが ${mergedResult.deletions.length} 件あります。\n\nこれらを削除してレビュー保存を実施しますか？\n\n例：${examples}`)){
+        toast('保存をキャンセルしました');
+        return;
+      }
+    }
+    records = mergedResult.merged;
+    try{persist();}catch(e){}
+    const csvText = generateCSVContent();
+
+    // Step 6: 新規ルールDOCの JSON 文字列
+    const newRulesText = (mergeResult.additions.length > 0) ? _rulesDocToJsonText(mergeResult.newDoc) : null;
+
+    // Step 7: blob / tree / commit / ref
+    if(dryRun){
+      console.log('[W7-3 dry-run] would create commit with:');
+      console.log('  base_sha =', baseSha);
+      console.log('  base_tree =', baseTree);
+      console.log('  pending pairs =', pendingPairs);
+      console.log('  additions =', mergeResult.additions);
+      console.log('  skipped =', mergeResult.skipped);
+      console.log('  master csv bytes =', csvText.length);
+      if(newRulesText) console.log('  rules json bytes =', newRulesText.length);
+      toast('dry-run: コンソールを確認してください');
+      return;
+    }
+
+    const blobCsv = await _ghCreateBlob(token, csvText);
+    const treeEntries = [
+      { path: GH_FILE, mode:'100644', type:'blob', sha: blobCsv.sha }
+    ];
+    if(newRulesText){
+      const blobRules = await _ghCreateBlob(token, newRulesText);
+      treeEntries.push({ path: W7_RULES_PATH, mode:'100644', type:'blob', sha: blobRules.sha });
+    }
+    const newTree = await _ghCreateTree(token, baseTree, treeEntries);
+    const updatedRows = pendingReviews.size;
+    const addedAliases = mergeResult.additions.length;
+    const msgLines = [
+      `W7-3 review: ${updatedRows} rows updated, ${addedAliases} aliases added`,
+      ''
+    ];
+    const ridSample = [...pendingReviews.keys()].slice(0,3).join(', ');
+    if(ridSample) msgLines.push(`Records: ${ridSample}${pendingReviews.size>3?' …':''}`);
+    if(addedAliases > 0){
+      const pairs = mergeResult.additions.slice(0,3).map(a => `${a.from}→${a.to}`).join(', ');
+      msgLines.push(`Aliases: ${pairs}${addedAliases>3?' …':''}`);
+    }
+    msgLines.push('', 'Refs: 指示書_W7-3_collector_html_レビューUI_20260420.md');
+    const commitMsg = msgLines.join('\n');
+    const newCommit = await _ghCreateCommit(token, commitMsg, newTree.sha, baseSha);
+    let updatedRef;
+    try{
+      updatedRef = await _ghUpdateRef(token, 'heads/main', newCommit.sha);
+    }catch(e){
+      if(e.status === 422 || e.status === 409){
+        alert(`⚠ 並行 push 衝突 (HTTP ${e.status})\n\nmain が他で更新されました。ページをリロードして再試行してください。`);
+        return;
+      }
+      throw e;
+    }
+
+    // 成功：保留をクリアし、record を最新 nearest_station で確定
+    pendingReviews.clear();
+    try{persist();}catch(e){}
+    renderTable();
+    updateReviewButtonBadge();
+    const shortSha = (newCommit.sha||'').slice(0,7);
+    alert(`✅ レビュー保存成功\n\n更新行: ${updatedRows}\n辞書追記: ${addedAliases}\n衝突: 0\ncommit: ${shortSha}`);
+    toast(`✓ レビュー保存完了 ${updatedRows}行 / 辞書${addedAliases}件 (commit:${shortSha})`);
+
+  }catch(e){
+    console.error('[W7-3] uploadReviewToGitHubAtomic error:', e);
+    if(e.status === 401 || e.status === 403){
+      localStorage.removeItem(GH_TOKEN_KEY);
+      alert(`⚠ GitHub 認証エラー (HTTP ${e.status})\n\ntoken が無効、もしくは repo スコープが不足しています。\n⚙ ボタンで再設定してください。\n\n${e.message||''}`);
+      showGHTokenModal();
+    } else {
+      alert(`⚠ レビュー保存失敗\n\n${e.message||e}\n\n通信・トークン権限を確認してください。`);
+    }
+  } finally {
+    if(btn){ btn.disabled = false; }
+    updateReviewButtonBadge();
+  }
+}
+
+// ------------------------------------------------------------
+// ⑧ parity 診断（?parity=1 で起動）
+// ------------------------------------------------------------
+async function runNormalizeParityCheck(){
+  try{
+    await _loadCanonicalRules(true);
+    const res = await fetch('./tests/fixtures/normalize_parity_cases.json?t=' + Date.now());
+    if(!res.ok){
+      toast('⚠ parity fixture 取得失敗（tests/fixtures/normalize_parity_cases.json）');
+      return;
+    }
+    const doc = await res.json();
+    const cases = doc.cases || [];
+    const mismatches = [];
+    for(const c of cases){
+      const actual = normalizeSpotNameJs(c.input);
+      if(actual !== c.expected) mismatches.push({input:c.input, expected:c.expected, actual});
+    }
+    if(mismatches.length === 0){
+      console.log(`[W7-3 parity] OK: ${cases.length} cases all match`);
+      toast(`✓ parity OK (${cases.length}件)`);
+    } else {
+      console.error(`[W7-3 parity] ${mismatches.length} mismatches:`, mismatches);
+      toast(`⚠ parity MISMATCH ${mismatches.length}件 (console参照)`);
+    }
+  }catch(e){
+    console.error('[W7-3 parity] exception:', e);
+    toast('⚠ parity 例外: ' + (e.message || e));
+  }
+}
+
+// ------------------------------------------------------------
+// ⑨ 起動時初期化（rules プリフェッチ、?parity=1 診断）
+// ------------------------------------------------------------
+(async function _w7Init(){
+  try{
+    await _loadCanonicalRules(false);
+  }catch(e){ /* warn already emitted */ }
+  if(_w7IsParityMode()){
+    setTimeout(runNormalizeParityCheck, 300);
+  }
+  updateReviewButtonBadge();
+})();
 
 refreshCount();renderTable();updateStats();loadCSVfromServer();
 </script>
