@@ -80,6 +80,25 @@ jobs:
             --c4      data/muroto_offshore_current_all.csv \
             --out-dir data
 
+      # --- W7-1: 不明行検出ガード（2026-04-20 追加） ---
+      # master_catch.csv に nearest_station="不明" の行があれば push を止める。
+      # 人レビュー（W7-3 レビューUI、まだ未実装）で "不明" が解消されるまで、
+      # CI パイプラインを進めず Pages への反映をブロックする。
+      - name: 不明行検出（push ブロック）
+        run: |
+          python -c "
+          import csv, sys
+          with open('data/master_catch.csv', encoding='utf-8-sig') as f:
+              rows = list(csv.DictReader(f))
+          unknown_rows = [r for r in rows if r.get('nearest_station') == '不明']
+          if unknown_rows:
+              print(f'ERROR: {len(unknown_rows)} 行の nearest_station が不明です。collector.html でレビューしてください。')
+              for r in unknown_rows[:10]:
+                  print(f\"  record_id={r['record_id']} spot={r['spot']!r} date={r['date']}\")
+              sys.exit(1)
+          print('OK: 不明 行なし')
+          "
+
       # --- Step D: analyze_engine.py で v2.1 解析結果を再生成（W6-3 追加） ---
       # data/analysis/analysis_result.json と development.html / index.html の
       # window.ANALYSIS_DATA 埋込を一括更新。純粋なデータ処理で外部 API は使わない。
