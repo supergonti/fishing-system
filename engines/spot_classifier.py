@@ -108,6 +108,16 @@ class SpotClassifier:
         self._whitespace: list[str] = list(stopwords.get("whitespace", []))
         self._brackets: list[str] = list(stopwords.get("brackets", []))
 
+        # W7-2: substring fallback 用データ
+        # 否定リスト（誤マッチ抑制）。初期は空配列、将来 {"contains": "...", "reason": "..."} を追記
+        self._negatives: list[dict] = list(self._rules_doc.get("negatives", []))
+        # 地点名長さ降順でソート（substring マッチの優先度：長い名前を優先）
+        self._stations_by_length: list[dict] = sorted(
+            self._weather_stations,
+            key=lambda s: len(s["name"]),
+            reverse=True,
+        )
+
     # ------------------------------------------------------------
     # 正規化
     # ------------------------------------------------------------
@@ -205,6 +215,39 @@ class SpotClassifier:
         return points[best_idx]["name"], best_raw_dist
 
     # ------------------------------------------------------------
+    # Substring fallback（W7-2, 2026-04-20 追加）
+    # ------------------------------------------------------------
+    def _substring_match(self, canonical: str) -> Optional[str]:
+        """
+        canonical に weather_stations の name が含まれる場合、最も長い station name を返す。
+
+        挙動:
+          - self._stations_by_length（名前長さ降順）で走査し、最初にヒットした name を採用
+          - ただし self._negatives に登録された contains 文字列が canonical に
+            含まれていた場合、その station マッチはブロックされ、次の station を試す
+          - どれにもヒットしなければ None
+
+        注意:
+          - 距離計算は一切行わない（distance_km は呼び出し側で None にする）
+          - 座標の有無とは独立な純粋文字列マッチング
+        """
+        for station in self._stations_by_length:
+            name = station["name"]
+            if name not in canonical:
+                continue
+            # 否定リストチェック：canonical に該当 contains が含まれていればブロック
+            blocked = False
+            for neg in self._negatives:
+                contains = neg.get("contains")
+                if contains and contains in canonical:
+                    blocked = True
+                    break
+            if blocked:
+                continue
+            return name
+        return None
+
+    # ------------------------------------------------------------
     # メイン分類
     # ------------------------------------------------------------
     def classify(
@@ -216,11 +259,12 @@ class SpotClassifier:
         """
         raw_spot を canonical に正規化し、lat/lng から最近傍を割り当てる。
 
-        戻り値 nearest_station の判定境界（W7-1 §4-1 の表）：
-          - raw が空文字列 / None     : None        （空は空のまま扱う）
-          - raw あり＋座標欠落        : "不明"      （W7-1 新、人レビュー必要）
-          - raw あり＋座標あり＋>300km: "その他"    （閾値超過、分類として正解）
-          - raw あり＋座標あり＋≤300km: station 名
+        戻り値 nearest_station の判定境界（W7-2 §4-1 以降の表）：
+          - raw が空文字列 / None                 : None        （空は空のまま扱う）
+          - raw あり＋座標あり＋>300km            : "その他"    （閾値超過、分類として正解）
+          - raw あり＋座標あり＋≤300km            : station 名
+          - raw あり＋座標欠落＋substring hit     : station 名 （W7-2 新、distance_km は None）
+          - raw あり＋座標欠落＋substring miss    : "不明"     （W7-1 経由：人レビュー必要）
         """
         canonical = self.normalize_spot_name(raw_spot)
 
@@ -235,9 +279,20 @@ class SpotClassifier:
                 current_distance_km=None,
             )
 
-        # 座標欠落：canonical は取れているが距離判定が不能なので UNKNOWN_SENTINEL を返す。
-        # （substring fallback は W7-2 で追加、本フェーズではまだ None→"不明" 昇格のみ）
+        # 座標欠落：haversine が不能なので substring fallback を試す（W7-2）。
+        # ヒットすれば station 名を返し、ヒットしなければ UNKNOWN_SENTINEL を返す。
+        # 注意: ここに来た時点で座標なし → 海流地点（current_point）は決定不能なので None のまま
         if lat is None or lng is None:
+            ss = self._substring_match(canonical)
+            if ss is not None:
+                return ClassifyResult(
+                    raw_spot=raw_spot,
+                    canonical_spot=canonical,
+                    nearest_station=ss,
+                    distance_km=None,  # substring match では距離計算していない
+                    current_point=None,
+                    current_distance_km=None,
+                )
             return ClassifyResult(
                 raw_spot=raw_spot,
                 canonical_spot=canonical,
