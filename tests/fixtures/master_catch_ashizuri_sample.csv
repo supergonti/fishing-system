@@ -1,0 +1,6 @@
+﻿record_id,date,time,species,size_cm,weight_kg,count,bait,method,spot,spot_lat,spot_lng,nearest_station,tide,weather,temp,water_temp,wind,memo,source,canonical_spot,sea_area,entered_at,source_detail,prompt_version,confidence
+aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa,2026-04-20,06:00,カツオ,40,1.2,1,,ジギング,足摺岬,32.72,132.95,足摺,,晴れ,,20,,テスト足摺1,manual,足摺岬,足摺沖,2026-04-20T06:00:00+09:00,,,
+bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb,2026-04-20,07:00,マダイ,50,2.0,1,,タイラバ,足摺岬沖,32.72,132.95,足摺,,晴れ,,20,,テスト足摺2,manual,足摺岬,足摺沖,2026-04-20T07:00:00+09:00,,,
+cccccccc-cccc-4ccc-cccc-cccccccccccc,2026-04-20,08:00,ハマチ,50,2.5,1,,泳がせ,高知足摺岬,32.72,132.95,足摺,,曇り,,19,,テスト足摺3,manual,足摺岬,足摺沖,2026-04-20T08:00:00+09:00,,,
+dddddddd-dddd-4ddd-dddd-dddddddddddd,2026-04-20,09:00,ブリ,80,6.0,1,,泳がせ,室戸沖,33.29,134.18,室戸,,晴れ,,18,,テスト室戸1,manual,室戸沖,室戸沖,2026-04-20T09:00:00+09:00,,,
+eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee,2026-04-20,10:00,カンパチ,70,5.0,1,,ジギング,高知室戸沖,33.29,134.18,室戸,,晴れ,,18,,テスト室戸2,manual,室戸沖,室戸沖,2026-04-20T10:00:00+09:00,,,
