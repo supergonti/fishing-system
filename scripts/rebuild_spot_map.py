@@ -70,7 +70,11 @@ def rebuild(
     with map_path.open(encoding="utf-8") as f:
         doc = json.load(f)
 
-    clf = SpotClassifier(stations_path, rules_path)
+    # W7-4: spot_station_map を classifier に渡すことで、海流マッチが sea_area 階層化される。
+    # decide_sea_area() / SEA_AREA_BY_STATION は nearest_station（weather）起点のため不変。
+    # 案I-light: 既存 spots[].sea_area は rebuild 時に decide_sea_area() が再計算する
+    # 従来挙動を維持（classifier への入力としてのみ利用される）。
+    clf = SpotClassifier(stations_path, rules_path, spot_station_map_path=map_path)
 
     now_iso = datetime.now(JST).replace(microsecond=0).isoformat()
     diffs: list[str] = []
