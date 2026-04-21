@@ -80,7 +80,18 @@ class SpotClassifier:
         self,
         stations_master_path: str | Path,
         canonical_rules_path: str | Path,
+        spot_station_map_path: str | Path | None = None,
     ) -> None:
+        """
+        Args:
+            stations_master_path: stations_master.json のパス
+            canonical_rules_path: spot_canonical_rules.json のパス
+            spot_station_map_path:
+                spot_station_map.json のパス（optional、W7-4 で追加）。
+                与えられた場合、spots[].canonical_spot → sea_area のルックアップを構築し
+                classify() の海流マッチで sea_area フィルタとして使う。
+                None の場合はフラット最近傍（W7-4 以前の後方互換挙動）。
+        """
         self._stations_master_path = Path(stations_master_path)
         self._canonical_rules_path = Path(canonical_rules_path)
 
@@ -117,6 +128,20 @@ class SpotClassifier:
             key=lambda s: len(s["name"]),
             reverse=True,
         )
+
+        # W7-4: 海域階層化
+        # canonical_spot → sea_area の lookup。spot_station_map.json の spots[] から構築。
+        # 与えられていない場合は空 dict で、classify() は海流マッチをフラット最近傍にフォールバック。
+        self._canonical_to_sea_area: dict[str, Optional[str]] = {}
+        if spot_station_map_path is not None:
+            ssm_path = Path(spot_station_map_path)
+            with ssm_path.open(encoding="utf-8") as f:
+                ssm = json.load(f)
+            for e in ssm.get("spots", []):
+                canonical = e.get("canonical_spot")
+                sea_area = e.get("sea_area")
+                if canonical:
+                    self._canonical_to_sea_area[canonical] = sea_area
 
     # ------------------------------------------------------------
     # 正規化
@@ -265,6 +290,12 @@ class SpotClassifier:
           - raw あり＋座標あり＋≤300km            : station 名
           - raw あり＋座標欠落＋substring hit     : station 名 （W7-2 新、distance_km は None）
           - raw あり＋座標欠落＋substring miss    : "不明"     （W7-1 経由：人レビュー必要）
+
+        戻り値 current_point の判定境界（W7-4 §3-5 sea_area 階層化）：
+          - 座標なし                                       : None
+          - 座標あり＋canonical → sea_area lookup hit     : sea_area フィルタ後で最近傍
+          - 座標あり＋lookup miss（後方互換）              : 全 current_points フラット最近傍
+          - 該当海域の current_points が空 or 閾値超過     : None
         """
         canonical = self.normalize_spot_name(raw_spot)
 
@@ -309,14 +340,31 @@ class SpotClassifier:
         else:
             nearest_station = w_name
 
-        # 海流5地点
-        c_name, c_dist = self._nearest(lat, lng, self._current_points)
-        if c_dist > CURRENT_DISTANCE_THRESHOLD_KM:
+        # 海流地点（W7-4 で sea_area 階層化）
+        # canonical → sea_area lookup が hit した場合は該当海域の current_points のみで最近傍、
+        # hit しない場合はフラット最近傍（W7-4 以前の後方互換挙動）
+        sea_area = self._canonical_to_sea_area.get(canonical)
+        if sea_area:
+            filtered_current = [
+                p for p in self._current_points
+                if p.get("sea_area") == sea_area
+            ]
+        else:
+            filtered_current = self._current_points
+
+        if not filtered_current:
+            # 該当海域に 1 点も無い（例: sea_area='足摺沖' だが stations_master に足摺沖
+            # current_point が未登録など）→ 海流割当不能
             current_point: Optional[str] = None
             current_distance_km: Optional[float] = None
         else:
-            current_point = c_name
-            current_distance_km = c_dist
+            c_name, c_dist = self._nearest(lat, lng, filtered_current)
+            if c_dist > CURRENT_DISTANCE_THRESHOLD_KM:
+                current_point = None
+                current_distance_km = None
+            else:
+                current_point = c_name
+                current_distance_km = c_dist
 
         return ClassifyResult(
             raw_spot=raw_spot,
@@ -337,12 +385,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SpotClassifier 単発テスト")
     parser.add_argument("--stations", required=True, help="stations_master.json のパス")
     parser.add_argument("--rules", required=True, help="spot_canonical_rules.json のパス")
+    parser.add_argument(
+        "--spot-map",
+        default=None,
+        help="spot_station_map.json のパス（optional、W7-4 sea_area フィルタ用）",
+    )
     parser.add_argument("--spot", required=True, help="raw spot 文字列")
     parser.add_argument("--lat", type=float, default=None)
     parser.add_argument("--lng", type=float, default=None)
     args = parser.parse_args()
 
-    clf = SpotClassifier(args.stations, args.rules)
+    clf = SpotClassifier(args.stations, args.rules, spot_station_map_path=args.spot_map)
     r = clf.classify(args.spot, args.lat, args.lng)
     print(
         "raw={raw!r}\n"
