@@ -1,4 +1,5 @@
 ﻿date,time,species,size_cm,weight_kg,count,bait,method,spot,spot_lat,spot_lng,nearest_station,tide,weather,temp,water_temp,wind,memo,source
+2026-04-18,09:20,ブラックバス,25,25,25,ルアー,ジギング,室戸,,,室戸,,,25,25,25,,Manual
 2026-04-20,21:43,鯉,70,70,70,ミミズ,,室戸沖,,,,,,70,70,70,,Manual
 2026-04-20,10:18,イカTest3,22,22,22,イカメタル,ジギング,室戸沖,,,,,,22,22,22,,Manual
 2026-04-20,09:29,タコTest2,21,21,21,泳がせ,底物泳がせ,室戸,,,,,,21,21,21,,Manual
