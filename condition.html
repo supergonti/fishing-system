@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>釣り条件分析データベース V6.0</title>
+<title>釣り条件分析データベース</title>
 <link rel="icon" type="image/svg+xml" href="./favicon.svg">
 <link rel="alternate icon" href="./favicon.ico">
 <style>
@@ -127,7 +127,7 @@ body{background:var(--bg);font-family:'Yu Gothic UI','Meiryo UI','Hiragino Sans'
 <div class="app-header">
   <span class="icon">🌊</span>
   <div>
-    <h1>釣り条件分析データベース V6.0</h1>
+    <h1>釣り条件分析データベース</h1>
     <p>天気・水温・潮汐・月齢を一括収集（6:00-9:00 集計）／ Open-Meteo API（無料・APIキー不要）</p>
   </div>
 </div>
@@ -180,7 +180,7 @@ body{background:var(--bg);font-family:'Yu Gothic UI','Meiryo UI','Hiragino Sans'
     <div class="card-title" style="color:#9a7d0a;">⚠️ このタブはテスト・検証専用です</div>
     <p style="font-size:.85rem;color:#7d6608;margin-bottom:6px;font-weight:600;">本番の環境データCSVは GitHub Actions が毎週月曜9:00 JSTに自動生成します。</p>
     <p style="font-size:.82rem;color:#9a7d0a;">ここからエクスポートされるファイルはタイムスタンプ付きの別名で保存されるため、本番データと競合しません。<br>
-    V6.1で自動保存機能は完全廃止予定です。</p>
+    自動保存機能は廃止予定です。</p>
   </div>
   <div class="card">
     <div class="card-title">保存先フォルダ（任意設定）</div>
@@ -1081,7 +1081,7 @@ async function fetchAll(){
     showToast('全データ取得完了');
     /* Auto-save CSV + JSON — V6.1で廃止: Actions一本化のため自動保存を停止 */
     // await autoSaveAll();
-    log('※ 自動保存はV6.1で廃止されました。本番CSVはGitHub Actionsが生成します。','warn');
+    log('※ 自動保存は廃止されました。本番CSVはGitHub Actionsが生成します。','warn');
   }catch(e){
     log(`エラー: ${e.message}`,'err');
   }finally{
@@ -1406,7 +1406,7 @@ async function fetchPartial(types){
     showToast('取得完了');
     /* Auto-save CSV + JSON — V6.1で廃止: Actions一本化のため自動保存を停止 */
     // await autoSaveAll();
-    log('※ 自動保存はV6.1で廃止されました。本番CSVはGitHub Actionsが生成します。','warn');
+    log('※ 自動保存は廃止されました。本番CSVはGitHub Actionsが生成します。','warn');
   }catch(e){log(`エラー: ${e.message}`,'err');}
   finally{
     fetching=false;
@@ -1537,7 +1537,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
       if(h){saveDirHandle=h;updateSaveDirDisplay();}
     }catch(e){console.warn('Could not restore dir handle:',e);}
     setRunBadge('idle');
-    log('初期化完了 - V6.0 (6:00-9:00 JST対応)','ok');
+    log('初期化完了 (6:00-9:00 JST対応)','ok');
     if(saveDirHandle)log(`保存先フォルダ: ${saveDirHandle.name}`,'ok');
     else log('保存先フォルダ未設定 — CSV出力タブで設定してください');
   }catch(e){

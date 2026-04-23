@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>釣果データ収集ソフト V5.5</title>
+<title>室戸沖 室戸1 釣果データ収集ソフト</title>
 <link rel="icon" type="image/svg+xml" href="./favicon.svg">
 <link rel="alternate icon" href="./favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
@@ -116,6 +116,12 @@ td.sz{font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--red);letter
 td.wt{font-family:'Bebas Neue',sans-serif;font-size:13px;color:var(--gold);}
 td.dt{font-size:11px;color:var(--text3);white-space:nowrap;width:54px;min-width:54px;}
 td.ns{font-size:11px;color:var(--purple);}
+th.col-bait,td.col-bait{width:72px;min-width:72px;max-width:72px;overflow:hidden;text-overflow:ellipsis;}
+th.col-method,td.col-method{width:40px;min-width:40px;max-width:40px;overflow:hidden;text-overflow:ellipsis;}
+th.col-tide,td.col-tide{width:40px;min-width:40px;max-width:40px;overflow:hidden;text-overflow:ellipsis;}
+th.col-weather,td.col-weather{width:40px;min-width:40px;max-width:40px;overflow:hidden;text-overflow:ellipsis;}
+td.col-memo{max-width:120px;overflow:hidden;text-overflow:ellipsis;font-size:11px;cursor:pointer;}
+td.col-memo.expanded{max-width:420px;white-space:normal;word-break:break-word;overflow:visible;background:rgba(184,150,62,.08);}
 .del{background:none;border:none;cursor:pointer;color:var(--border);font-size:13px;padding:2px 6px;border-radius:4px;}
 .del:hover{color:var(--red);background:rgba(192,57,43,.08);}
 .src-badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;}
@@ -202,8 +208,8 @@ th.chk-col,td.chk-col{width:36px;text-align:center;padding:6px 4px;}
 </script>
 <div class="header">
   <div>
-    <div class="header-title">釣果データ収集ソフト V5.5</div>
-    <div class="header-sub">緯度経度・最近傍観測地点自動マッチング / スクショ解析 / JSON自動入力 / CSV出力</div>
+    <div class="header-title">室戸沖 室戸1 釣果データ収集ソフト</div>
+    <div class="header-sub">緯度経度・観測地点自動マッチング / スクショ解析 / JSON自動入力 / CSV出力</div>
   </div>
   <div class="header-count"><span id="hcount">0</span> 件</div>
 </div>
@@ -220,7 +226,7 @@ th.chk-col,td.chk-col{width:36px;text-align:center;padding:6px 4px;}
   <div class="step-box" data-step="STEP 1 — Claudeに依頼">
     <div class="step-note">スクショをClaudeチャットに添付し、下のメッセージをコピーして送ってください。<br>
     <span style="color:var(--green);font-size:11px;">✓ ファイル名から撮影日時を自動読み取り</span><br>
-    <span style="color:var(--purple);font-size:11px;">✓ V5.5新機能：釣り場の緯度・経度を自動推定 → 最近傍観測地点を自動セット</span></div>
+    <span style="color:var(--purple);font-size:11px;">✓ 釣り場の緯度・経度を自動推定 → 観測地点を自動セット</span></div>
     <div style="background:var(--sea);border:1px solid rgba(184,150,62,0.3);border-radius:6px;padding:10px 12px;margin-bottom:10px;">
       <div style="font-size:10px;letter-spacing:2px;color:var(--gold2);margin-bottom:7px;font-family:'Bebas Neue',sans-serif;">📁 スクショファイルを選択して撮影日時を自動取得</div>
       <input type="file" id="ss-file-picker" accept="image/*" multiple style="display:none" onchange="onSSFilePick(event)">
@@ -291,7 +297,7 @@ th.chk-col,td.chk-col{width:36px;text-align:center;padding:6px 4px;}
     <div class="fgrid3">
       <div class="frow"><label class="fl">サイズ cm</label><input type="number" class="fi" id="m-size" placeholder="80"></div>
       <div class="frow"><label class="fl">重量 kg</label><input type="number" class="fi" id="m-weight" placeholder="5.5" step="0.1"></div>
-      <div class="frow"><label class="fl">本数</label><input type="number" class="fi" id="m-count" placeholder="1"></div>
+      <div class="frow"><label class="fl">匹数</label><input type="number" class="fi" id="m-count" placeholder="1"></div>
     </div>
     <div class="frow"><label class="fl">エサ / ルアー</label><input type="text" class="fi" id="m-bait" placeholder="例: アジ 25cm"></div>
     <div class="frow">
@@ -303,7 +309,7 @@ th.chk-col,td.chk-col{width:36px;text-align:center;padding:6px 4px;}
         <span class="tag" id="mm-ジギング" onclick="pickMM(this,'ジギング')">ジギング</span>
       </div>
     </div>
-    <div class="frow"><label class="fl">ポイント</label><input type="text" class="fi" id="m-spot" placeholder="例: 沖ノ島 南礁"></div>
+    <div class="frow"><label class="fl">釣り場</label><input type="text" class="fi" id="m-spot" placeholder="例: 沖ノ島 南礁"></div>
     <div class="fgrid">
       <div class="frow"><label class="fl">緯度（任意）</label><input type="number" class="fi" id="m-lat" placeholder="33.28" step="0.0001"></div>
       <div class="frow"><label class="fl">経度（任意）</label><input type="number" class="fi" id="m-lng" placeholder="134.15" step="0.0001"></div>
@@ -372,9 +378,9 @@ th.chk-col,td.chk-col{width:36px;text-align:center;padding:6px 4px;}
         <th class="sort-th" onclick="setSort('species')" style="width:80px;min-width:80px;">魚種<span class="sort-arrow" id="arr-species"></span></th>
         <th class="sort-th" onclick="setSort('size_cm')">cm<span class="sort-arrow" id="arr-size_cm"></span></th>
         <th class="sort-th" onclick="setSort('weight_kg')">kg<span class="sort-arrow" id="arr-weight_kg"></span></th>
-        <th>本</th><th>エサ</th><th>釣法</th><th>ポイント</th>
-        <th>最近傍地点</th>
-        <th>潮</th><th>天気</th><th>水温</th><th>気温</th><th>風</th><th>メモ</th><th>ソース</th>
+        <th>匹</th><th class="col-bait">エサ</th><th class="col-method">釣法</th><th>釣り場</th>
+        <th>観測地点</th>
+        <th class="col-tide">潮</th><th class="col-weather">天気</th><th>水温</th><th>気温</th><th>風</th><th>メモ</th><th>ソース</th>
         <th class="sort-th" onclick="setSort('entered_at')">入力日時<span class="sort-arrow" id="arr-entered_at"></span></th>
         <th style="width:48px;"></th>
       </tr></thead>
@@ -427,7 +433,7 @@ th.chk-col,td.chk-col{width:36px;text-align:center;padding:6px 4px;}
     <div class="fgrid3">
       <div class="frow"><label class="fl">重量 kg</label><input type="number" class="fi" id="cl-weight" step="0.1" placeholder="—"></div>
       <div class="frow"><label class="fl">サイズ cm</label><input type="number" class="fi" id="cl-size" placeholder="—"></div>
-      <div class="frow"><label class="fl">本数</label><input type="number" class="fi" id="cl-count" placeholder="1"></div>
+      <div class="frow"><label class="fl">匹数</label><input type="number" class="fi" id="cl-count" placeholder="1"></div>
     </div>
     <div class="frow"><label class="fl">メモ（追記・修正）</label><input type="text" class="fi" id="cl-memo" placeholder="メモを修正する場合はここに入力"></div>
     <div class="clone-divider"></div>
@@ -438,7 +444,7 @@ th.chk-col,td.chk-col{width:36px;text-align:center;padding:6px 4px;}
     </div>
     <div class="frow"><label class="fl">魚種</label><input type="text" class="fi" id="cl-species"></div>
     <div class="frow"><label class="fl">エサ / ルアー</label><input type="text" class="fi" id="cl-bait"></div>
-    <div class="frow"><label class="fl">ポイント</label><input type="text" class="fi" id="cl-spot"></div>
+    <div class="frow"><label class="fl">釣り場</label><input type="text" class="fi" id="cl-spot"></div>
     <div class="fgrid">
       <div class="frow"><label class="fl">釣法</label><input type="text" class="fi" id="cl-method"></div>
       <div class="frow"><label class="fl">潮回り</label><select class="fs" id="cl-tide"><option value="">—</option><option>大潮</option><option>中潮</option><option>小潮</option><option>長潮</option><option>若潮</option></select></div>
@@ -791,13 +797,13 @@ function showPreview(i){
         <div class="preview-item" style="grid-column:1/-1;"><div class="preview-lbl">魚種</div><input class="pv-input pv-species" id="pv-species" type="text" value="${item.species||''}"></div>
         <div class="preview-item"><div class="preview-lbl">サイズ cm</div><input class="pv-input pv-big" id="pv-size" type="number" value="${item.size_cm||''}" placeholder="推定値"></div>
         <div class="preview-item"><div class="preview-lbl">重量 kg</div><input class="pv-input pv-gold" id="pv-weight" type="number" step="0.1" value="${item.weight_kg||''}" placeholder="推定値"></div>
-        <div class="preview-item"><div class="preview-lbl">本数</div><input class="pv-input" id="pv-count" type="number" value="${item.count||1}"></div>
+        <div class="preview-item"><div class="preview-lbl">匹数</div><input class="pv-input" id="pv-count" type="number" value="${item.count||1}"></div>
         <div class="preview-item"><div class="preview-lbl">エサ / ルアー</div><input class="pv-input" id="pv-bait" type="text" value="${item.bait||''}"></div>
         <div class="preview-item" style="grid-column:1/-1;"><div class="preview-lbl">釣法</div><input class="pv-input" id="pv-method" type="text" value="${item.method||''}"></div>
-        <div class="preview-item" style="grid-column:1/-1;"><div class="preview-lbl">ポイント</div><input class="pv-input" id="pv-spot" type="text" value="${item.spot||''}"></div>
+        <div class="preview-item" style="grid-column:1/-1;"><div class="preview-lbl">釣り場</div><input class="pv-input" id="pv-spot" type="text" value="${item.spot||''}"></div>
         <div class="preview-item"><div class="preview-lbl">緯度 spot_lat</div><input class="pv-input" id="pv-lat" type="number" step="0.0001" value="${item.spot_lat!=null&&item.spot_lat!==''?item.spot_lat:''}" placeholder="例: 33.28"></div>
         <div class="preview-item"><div class="preview-lbl">経度 spot_lng</div><input class="pv-input" id="pv-lng" type="number" step="0.0001" value="${item.spot_lng!=null&&item.spot_lng!==''?item.spot_lng:''}" placeholder="例: 134.15"></div>
-        <div class="preview-item" style="grid-column:1/-1;"><div class="preview-lbl">最近傍観測地点（自動計算）</div>
+        <div class="preview-item" style="grid-column:1/-1;"><div class="preview-lbl">観測地点（自動計算）</div>
           <div style="padding:6px 8px;font-size:13px;font-weight:700;color:var(--purple);">${ns?'📍 '+ns:(item.spot_lat?'距離300km超 — 該当なし':'— 座標未設定')}</div>
         </div>
         <div class="preview-item"><div class="preview-lbl">潮回り</div><select class="pv-input" id="pv-tide">${['','大潮','中潮','小潮','長潮','若潮'].map(t=>`<option value="${t}" ${item.tide===t?'selected':''}>${t||'—'}</option>`).join('')}</select></div>
@@ -1000,13 +1006,13 @@ function renderTable(){
       <td class="dt">${r.date?r.date.slice(2).replace(/-/g,'/'):'—'}</td>
       <td class="sp" style="max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.species||''}">${r.species?r.species.slice(0,7):''}${dup?'<span class="dup-icon" title="重複の可能性あり">⚠️</span>':''}</td>
       <td class="sz">${dv(r.size_cm)}</td><td class="wt">${dv(r.weight_kg)}</td>
-      <td>${r.count||1}</td><td>${r.bait||'—'}</td>
-      <td style="font-size:11px;">${r.method||'—'}</td>
+      <td>${r.count||1}</td><td class="col-bait" title="${r.bait||''}">${r.bait||'—'}</td>
+      <td class="col-method" style="font-size:11px;" title="${r.method||''}">${r.method||'—'}</td>
       <td style="max-width:90px;overflow:hidden;text-overflow:ellipsis;" title="${r.spot||''}">${r.spot||'—'}</td>
       <td class="ns">${nsCell}</td>
-      <td>${r.tide||'—'}</td><td style="font-size:11px;">${r.weather||'—'}</td>
+      <td class="col-tide" title="${r.tide||''}">${r.tide||'—'}</td><td class="col-weather" style="font-size:11px;" title="${r.weather||''}">${r.weather||'—'}</td>
       <td>${dv(r.water_temp)}</td><td>${dv(r.temp)}</td><td>${dv(r.wind)}</td>
-      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;font-size:11px;" title="${r.memo||''}">${r.memo||'—'}</td>
+      <td class="col-memo" title="${r.memo||''}" onclick="this.classList.toggle('expanded')">${r.memo||'—'}</td>
       <td>${srcBadge(r.source)}</td>
       <td class="entered-dt">${r.entered_at?r.entered_at.replace('T',' ').slice(0,16):'—'}</td>
       <td style="padding:4px;text-align:center;"><button class="btn-dup" onclick="openClonePanel(${r.id})">複製</button></td>
@@ -1172,7 +1178,7 @@ async function uploadToGitHub(){
     const mergeResult = mergeWithMaster(records, masterRecords);
     if(mergeResult.deletions.length > 0){
       const examples = mergeResult.deletions.slice(0,3).map(r=>`${r.date} ${r.species}`).join(' / ');
-      const confirmMsg = `⚠ master_catch.csv に存在し、V5.5 ローカルに無いレコードが ${mergeResult.deletions.length} 件あります。\n\nこれらを削除して push しますか？\n\n例：${examples}`;
+      const confirmMsg = `⚠ master_catch.csv に存在し、ローカルに無いレコードが ${mergeResult.deletions.length} 件あります。\n\nこれらを削除して push しますか？\n\n例：${examples}`;
       if(!confirm(confirmMsg)){
         toast('Push をキャンセルしました');
         return;
@@ -1852,7 +1858,7 @@ async function uploadReviewToGitHubAtomic(){
     const mergedResult = mergeWithMaster(records, masterRecs);
     if(mergedResult.deletions.length > 0){
       const examples = mergedResult.deletions.slice(0,3).map(r=>`${r.date} ${r.species}`).join(' / ');
-      if(!confirm(`⚠ master_catch.csv に存在し、V5.5 ローカルに無いレコードが ${mergedResult.deletions.length} 件あります。\n\nこれらを削除してレビュー保存を実施しますか？\n\n例：${examples}`)){
+      if(!confirm(`⚠ master_catch.csv に存在し、ローカルに無いレコードが ${mergedResult.deletions.length} 件あります。\n\nこれらを削除してレビュー保存を実施しますか？\n\n例：${examples}`)){
         toast('保存をキャンセルしました');
         return;
       }
