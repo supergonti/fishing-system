@@ -9,16 +9,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root{
-  --bg:#eef1f5;--surface:#ffffff;--surface2:#f0f4f8;
-  --accent:#2e86c1;--accent2:#1a5276;--gold:#d4ac50;
-  --green:#1e8449;--red:#c0392b;--purple:#6c3483;
-  --text:#2c3e50;--text2:#555;--text3:#888;
-  --border:#d5dbdb;--r:10px;
+  --bg:#0d1b2a;--surface:#1a2e44;--surface2:#1e3550;
+  --accent:#00b4d8;--accent2:#0077b6;--gold:#f4a261;
+  --green:#2ec4b6;--red:#e63946;--purple:#7b2d8b;
+  --text:#e0e7ef;--text2:#94a8bc;--text3:#5a7a99;
+  --border:#2a4060;--r:10px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);font-family:'Yu Gothic UI','Meiryo UI','Hiragino Sans',sans-serif;color:var(--text);min-height:100vh;}
 /* ─── ヘッダー ─── */
-.app-header{background:linear-gradient(135deg,#1a3a5c,#2e86c1);padding:14px 24px;display:flex;align-items:center;gap:16px;border-bottom:2px solid var(--accent2);color:#fff;}
+.app-header{background:#1a3a6c;padding:14px 24px;display:flex;align-items:center;gap:16px;border-bottom:2px solid var(--accent2);color:#fff;}
 .app-header h1,.app-header .header-meta,.app-header .header-meta b{color:#fff;}
 .app-header p{color:rgba(255,255,255,.75);}
 .app-header .icon{font-size:2rem;}
@@ -29,7 +29,7 @@ body{background:var(--bg);font-family:'Yu Gothic UI','Meiryo UI','Hiragino Sans'
 /* ─── フィルターパネル ─── */
 #filter-bar{background:var(--surface);border-bottom:1px solid var(--border);}
 #filter-toggle{width:100%;display:flex;align-items:center;gap:10px;padding:10px 24px;background:none;border:none;color:var(--text2);font-family:inherit;font-size:.86rem;cursor:pointer;text-align:left;transition:background .15s;}
-#filter-toggle:hover{background:rgba(0,0,0,.04);}
+#filter-toggle:hover{background:rgba(255,255,255,.04);}
 .ft-arrow{font-size:.75rem;transition:transform .25s;margin-left:auto;}
 .ft-arrow.open{transform:rotate(180deg);}
 #filter-badge{display:flex;align-items:center;gap:6px;margin-left:8px;}
@@ -46,7 +46,7 @@ body{background:var(--bg);font-family:'Yu Gothic UI','Meiryo UI','Hiragino Sans'
 .flink:hover{color:#fff;}
 .cb-list{display:flex;flex-wrap:wrap;gap:5px;max-height:130px;overflow-y:auto;padding-right:3px;}
 .cb-list::-webkit-scrollbar{width:4px;}
-.cb-list::-webkit-scrollbar-thumb{background:#b0bec5;border-radius:2px;}
+.cb-list::-webkit-scrollbar-thumb{background:#2a4060;border-radius:2px;}
 .cb-chip{display:flex;align-items:center;gap:3px;padding:3px 8px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-size:.72rem;color:var(--text2);transition:all .15s;white-space:nowrap;user-select:none;}
 .cb-chip input[type=checkbox]{accent-color:var(--accent);cursor:pointer;width:10px;height:10px;flex-shrink:0;}
 .cb-chip:has(input:checked){border-color:var(--accent);background:rgba(0,180,216,.1);color:var(--text);}
@@ -59,18 +59,18 @@ body{background:var(--bg);font-family:'Yu Gothic UI','Meiryo UI','Hiragino Sans'
 /* ─── 魚種・海域選択フィルター（filter-barと同デザイン） ─── */
 #sp-filter-bar{background:var(--surface);border-bottom:1px solid var(--border);}
 #sp-filter-toggle{width:100%;display:flex;align-items:center;gap:10px;padding:10px 24px;background:none;border:none;color:var(--text2);font-family:inherit;font-size:.86rem;cursor:pointer;text-align:left;transition:background .15s;}
-#sp-filter-toggle:hover{background:rgba(0,0,0,.04);}
+#sp-filter-toggle:hover{background:rgba(255,255,255,.04);}
 #sp-filter-badge{display:flex;align-items:center;gap:6px;margin-left:8px;}
 #sp-filter-body{display:none;padding:14px 24px 18px;border-top:1px solid var(--border);}
 /* ─── グループチェック共通 ─── */
 .cb-list-grouped{display:flex;flex-direction:column;gap:0;max-height:200px;overflow-y:auto;padding-right:3px;}
 .cb-list-grouped::-webkit-scrollbar{width:5px;}
-.cb-list-grouped::-webkit-scrollbar-thumb{background:#b0bec5;border-radius:2px;}
+.cb-list-grouped::-webkit-scrollbar-thumb{background:#2a4060;border-radius:2px;}
 .cb-group{padding:5px 0;border-bottom:1px solid var(--border);}
 .cb-group:last-child{border-bottom:none;}
 .cb-group:first-child{padding-top:0;}
 .cb-group-header{display:flex;align-items:center;gap:8px;margin-bottom:0;padding:4px 6px;border-radius:6px;cursor:pointer;user-select:none;transition:background .15s;}
-.cb-group-header:hover{background:rgba(0,0,0,.04);}
+.cb-group-header:hover{background:rgba(255,255,255,.04);}
 .cb-group-header:hover .cb-group-label{color:var(--text);}
 .cb-group-arrow{font-size:.7rem;color:var(--text);transition:transform .2s;margin-right:2px;}
 .cb-group-label{font-size:.84rem;font-weight:700;color:var(--text);letter-spacing:.3px;transition:color .2s;}
@@ -227,7 +227,7 @@ html.fs-reveal-private .fs-nav-group-private{display:flex}
 <div class="app-header">
   <span class="icon">🌊</span>
   <div>
-    <h1>室戸沖 室戸1 釣果データ解析ソフト <span class="dev-badge">改良版</span><button class="promote-btn" onclick="showPromoteModal()">更新</button></h1>
+    <h1>室戸沖 室戸1 釣果データ解析ソフト</h1>
     <p>3DB統合解析（釣果DB × 5地点海流DB × 気象潮汐DB）</p>
   </div>
   <div class="header-meta">
@@ -1421,7 +1421,7 @@ function renderTideTimeline() {
   const ctx = document.getElementById('c-tide-tl'); if(!ctx) return;
   CH['c-tide-tl'] = new Chart(ctx, {type:'line', data:{labels,datasets}, options:{
     responsive:true, maintainAspectRatio:false,
-    plugins:{legend:{labels:{color:'#555',font:{size:10}}},
+    plugins:{legend:{labels:{color:'#94a8bc',font:{size:10}}},
       tooltip:{callbacks:{
         afterLabel: ci => {
           const r=fil[ci.dataIndex];
@@ -1431,9 +1431,9 @@ function renderTideTimeline() {
         }
       }}},
     scales:{
-      x:{ticks:{color:'#555',font:{size:8},maxTicksLimit:20},grid:{color:'#d5dbdb'}},
-      y:{ticks:{color:'#555',font:{size:9}},grid:{color:'#d5dbdb'},
-         title:{display:true,text:'推定潮位',color:'#555'}}
+      x:{ticks:{color:'#94a8bc',font:{size:8},maxTicksLimit:20},grid:{color:'#1e3550'}},
+      y:{ticks:{color:'#94a8bc',font:{size:9}},grid:{color:'#1e3550'},
+         title:{display:true,text:'推定潮位',color:'#94a8bc'}}
     }
   }, plugins:[tideColorPlugin, moonPhasePlugin]});
 
@@ -1483,9 +1483,9 @@ function renderTideTimeline() {
         backgroundColor:'#e9c46a', borderWidth:1, borderColor:'#e9c46a'},
     ]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{labels:{color:'#555',font:{size:10}}}},
-      scales:{x:{ticks:{color:'#555',font:{size:9}},grid:{color:'#d5dbdb'}},
-              y:{ticks:{color:'#555',font:{size:9}},grid:{color:'#d5dbdb'},title:{display:true,text:'釣果日数',color:'#555'},beginAtZero:true}}}});
+      plugins:{legend:{labels:{color:'#94a8bc',font:{size:10}}}},
+      scales:{x:{ticks:{color:'#94a8bc',font:{size:9}},grid:{color:'#1e3550'}},
+              y:{ticks:{color:'#94a8bc',font:{size:9}},grid:{color:'#1e3550'},title:{display:true,text:'釣果日数',color:'#94a8bc'},beginAtZero:true}}}});
 }
 
 function switchTab(name) {
@@ -1616,24 +1616,24 @@ function kc(id) { if(CH[id]){CH[id].destroy();delete CH[id];} }
 function barChart(id,labels,datasets,opts={}) {
   kc(id); const ctx=document.getElementById(id); if(!ctx) return;
   CH[id]=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:true,
-    plugins:{legend:{labels:{color:'#555',font:{size:10}},display:datasets.length>1}},
-    scales:{x:{ticks:{color:'#555',font:{size:9}},grid:{color:'#d5dbdb'}},
-            y:{ticks:{color:'#555',font:{size:9}},grid:{color:'#d5dbdb'},beginAtZero:true,...(opts.y||{})}},
+    plugins:{legend:{labels:{color:'#94a8bc',font:{size:10}},display:datasets.length>1}},
+    scales:{x:{ticks:{color:'#94a8bc',font:{size:9}},grid:{color:'#1e3550'}},
+            y:{ticks:{color:'#94a8bc',font:{size:9}},grid:{color:'#1e3550'},beginAtZero:true,...(opts.y||{})}},
     ...(opts.extra||{})}});
 }
 function doughnutChart(id,labels,values,colors) {
   kc(id); const ctx=document.getElementById(id); if(!ctx) return;
   CH[id]=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data:values,
-    backgroundColor:colors||PALETTE.slice(0,labels.length),borderWidth:1,borderColor:'#ffffff'}]},
+    backgroundColor:colors||PALETTE.slice(0,labels.length),borderWidth:1,borderColor:'#0d1b2a'}]},
     options:{responsive:true,maintainAspectRatio:true,
-      plugins:{legend:{position:'right',labels:{color:'#555',font:{size:9},boxWidth:10}}}}});
+      plugins:{legend:{position:'right',labels:{color:'#94a8bc',font:{size:9},boxWidth:10}}}}});
 }
 function lineChart(id,labels,datasets,opts={}) {
   kc(id); const ctx=document.getElementById(id); if(!ctx) return;
   CH[id]=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{labels:{color:'#555',font:{size:10}}}},
-    scales:{x:{ticks:{color:'#555',font:{size:8},maxTicksLimit:opts.maxTicks||20},grid:{color:'#d5dbdb'}},
-            y:{ticks:{color:'#555',font:{size:9}},grid:{color:'#d5dbdb'},...(opts.y||{})},
+    plugins:{legend:{labels:{color:'#94a8bc',font:{size:10}}}},
+    scales:{x:{ticks:{color:'#94a8bc',font:{size:8},maxTicksLimit:opts.maxTicks||20},grid:{color:'#1e3550'}},
+            y:{ticks:{color:'#94a8bc',font:{size:9}},grid:{color:'#1e3550'},...(opts.y||{})},
             ...(opts.y2?{y2:{type:'linear',position:'right',ticks:{color:'#f4a261',font:{size:9}},
                          grid:{drawOnChartArea:false},...opts.y2}}:{})},
     ...(opts.extra||{})}});
@@ -1656,12 +1656,12 @@ function radarChart(id, labels, datasets, opts={}) {
   CH[id]=new Chart(ctx,{type:'radar',data:{labels,datasets},options:{
     responsive:true, maintainAspectRatio:true,
     scales:{r:{beginAtZero:true,
-      ticks:{color:'#555',font:{size:8},backdropColor:'transparent',stepSize:opts.step||10},
-      grid:{color:'#c8d6e5'},
-      pointLabels:{color:'#2c3e50',font:{size:11,weight:'bold'}},
-      angleLines:{color:'#c8d6e5'},
+      ticks:{color:'#94a8bc',font:{size:8},backdropColor:'transparent',stepSize:opts.step||10},
+      grid:{color:'#2a4060'},
+      pointLabels:{color:'#e0e7ef',font:{size:11,weight:'bold'}},
+      angleLines:{color:'#2a4060'},
     }},
-    plugins:{legend:{labels:{color:'#555',font:{size:10}},display:datasets.length>1}},
+    plugins:{legend:{labels:{color:'#94a8bc',font:{size:10}},display:datasets.length>1}},
     ...(opts.extra||{})
   }});
 }
@@ -1787,25 +1787,25 @@ function loadSpeciesProfile() {
   barChart('c-tide',tO, items.map(x=>({
     label:x.sp, data:tO.map(k=>(x.p.tide_dist||{})[k]||0),
     backgroundColor:alpha(x.color), borderColor:x.color, borderWidth:1,
-  })), {y:{title:{display:true,text:'%',color:'#555'}}});
+  })), {y:{title:{display:true,text:'%',color:'#94a8bc'}}});
 
   // ── 水温トレンドチャート
   const trO=trO_all.filter(k=>items.some(x=>(x.p.water_temp_trend_dist||{})[k]));
   if (items.length===1) {
     barChart('c-wt-trend',trO,[{label:'%',data:trO.map(k=>(items[0].p.water_temp_trend_dist||{})[k]||0),
-      backgroundColor:trO.map(k=>trC[k]),borderWidth:1}],{y:{title:{display:true,text:'%',color:'#555'}}});
+      backgroundColor:trO.map(k=>trC[k]),borderWidth:1}],{y:{title:{display:true,text:'%',color:'#94a8bc'}}});
   } else {
     barChart('c-wt-trend',trO, items.map(x=>({
       label:x.sp, data:trO.map(k=>(x.p.water_temp_trend_dist||{})[k]||0),
       backgroundColor:alpha(x.color), borderColor:x.color, borderWidth:1,
-    })), {y:{title:{display:true,text:'%',color:'#555'}}});
+    })), {y:{title:{display:true,text:'%',color:'#94a8bc'}}});
   }
 
   // ── 方向別チャート（棒グラフ）
   barChart('c-dir',C8, items.map(x=>({
     label:x.sp, data:C8.map(k=>(x.p.current_dir_dist||{})[k]||0),
     backgroundColor:alpha(x.color), borderColor:x.color, borderWidth:1,
-  })), {y:{title:{display:true,text:'%',color:'#555'}}});
+  })), {y:{title:{display:true,text:'%',color:'#94a8bc'}}});
 
   // ── 方向別チャート（レーダー）
   const areaLabel = areas.join('・');
@@ -1905,7 +1905,7 @@ function renderPrediction() {
     tbody+=`<tr class="${hi?'pred-row-high':''}"><td><b>${row.date}</b>${hi?' ⭐':''}</td>
       <td>${row.水温!=='—'?row.水温+'℃':'—'}</td><td>${trendBadge(row.trend)}</td>
       <td>${row.潮汐}</td><td>${row.流速!=='—'?row.流速+'kn':'—'}</td>`;
-    row.scores.forEach(sc=>{const w=Math.min(70,sc*1.1); const col=sc>=60?'#00c850':sc>=40?'#f4a261':'#555';
+    row.scores.forEach(sc=>{const w=Math.min(70,sc*1.1); const col=sc>=60?'#00c850':sc>=40?'#f4a261':'#94a8bc';
       tbody+=`<td>${sc}<span class="score-bar" style="width:${w}px;background:${col};"></span></td>`;});
     tbody+='</tr>';
   });
@@ -1913,7 +1913,7 @@ function renderPrediction() {
 
   lineChart('c-pred-trend',dates,sps.map((sp,i)=>({label:sp,data:dates.map(d=>(preds[d][sp]||{}).score||0),
     borderColor:PALETTE[i%PALETTE.length],backgroundColor:PALETTE[i%PALETTE.length]+'22',tension:0.3,fill:true,pointRadius:2})),
-    {extra:{maintainAspectRatio:true},y:{title:{display:true,text:'予測スコア',color:'#555'},beginAtZero:true}});
+    {extra:{maintainAspectRatio:true},y:{title:{display:true,text:'予測スコア',color:'#94a8bc'},beginAtZero:true}});
 }
 function trendBadge(t){const m={急上昇:'badge-up',上昇:'badge-up',安定:'badge-stable',下降:'badge-down',急下降:'badge-down'}; const c=m[t]||''; return c?`<span class="badge ${c}">${t}</span>`:(t||'—');}
 
@@ -2005,14 +2005,14 @@ function renderTimeline() {
   kc('c-timeline');
   const ctx=document.getElementById('c-timeline'); if(!ctx) return;
   CH['c-timeline']=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{labels:{color:'#555',font:{size:10}}},
+    plugins:{legend:{labels:{color:'#94a8bc',font:{size:10}}},
       tooltip:{callbacks:{afterLabel:ci=>{
         const r=fil[ci.dataIndex];
         const big = isBigCatch(r, spF) && (r.釣果||[]).some(s=>!spF||s===spF) ? ' ⭐大物!' : '';
         return r?.釣果?.length?'🎣 '+r.釣果.join(' / ')+big:'';
       }}}},
-    scales:{x:{ticks:{color:'#555',font:{size:8},maxTicksLimit:20},grid:{color:'#d5dbdb'}},
-      y:{ticks:{color:'#555',font:{size:9}},grid:{color:'#d5dbdb'},title:{display:true,text:'水温℃',color:'#555'}},
+    scales:{x:{ticks:{color:'#94a8bc',font:{size:8},maxTicksLimit:20},grid:{color:'#1e3550'}},
+      y:{ticks:{color:'#94a8bc',font:{size:9}},grid:{color:'#1e3550'},title:{display:true,text:'水温℃',color:'#94a8bc'}},
       ...(showCs?{y2:{type:'linear',position:'right',ticks:{color:'#7b2d8b',font:{size:9}},grid:{drawOnChartArea:false},title:{display:true,text:'流速kn',color:'#7b2d8b'}}}:{})}}});
 
   // トレンドカレンダー（設定タブの魚種フィルター適用）
@@ -2069,7 +2069,7 @@ function renderCurrentTimeline() {
   const ctx = document.getElementById('c-current-tl'); if(!ctx) return;
   CH['c-current-tl'] = new Chart(ctx, {type:'line', data:{labels,datasets}, options:{
     responsive:true, maintainAspectRatio:false,
-    plugins:{legend:{labels:{color:'#555',font:{size:10}}},
+    plugins:{legend:{labels:{color:'#94a8bc',font:{size:10}}},
       tooltip:{callbacks:{
         afterLabel: ci => {
           const r=fil[ci.dataIndex];
@@ -2081,8 +2081,8 @@ function renderCurrentTimeline() {
         }
       }}},
     scales:{
-      x:{ticks:{color:'#555',font:{size:8},maxTicksLimit:20},grid:{color:'#d5dbdb'}},
-      y:{ticks:{color:'#555',font:{size:9}},grid:{color:'#d5dbdb'},title:{display:true,text:'流速 kn',color:'#555'},beginAtZero:true}
+      x:{ticks:{color:'#94a8bc',font:{size:8},maxTicksLimit:20},grid:{color:'#1e3550'}},
+      y:{ticks:{color:'#94a8bc',font:{size:9}},grid:{color:'#1e3550'},title:{display:true,text:'流速 kn',color:'#94a8bc'},beginAtZero:true}
     }
   }});
 
@@ -2097,8 +2097,8 @@ function renderCurrentTimeline() {
       backgroundColor:C8.map((_,i)=>`hsla(${i*45},70%,55%,.75)`),borderWidth:1}]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false}},
-      scales:{x:{ticks:{color:'#555',font:{size:10}},grid:{color:'#d5dbdb'}},
-              y:{ticks:{color:'#555',font:{size:9}},grid:{color:'#d5dbdb'},title:{display:true,text:'日数',color:'#555'},beginAtZero:true}}}});
+      scales:{x:{ticks:{color:'#94a8bc',font:{size:10}},grid:{color:'#1e3550'}},
+              y:{ticks:{color:'#94a8bc',font:{size:9}},grid:{color:'#1e3550'},title:{display:true,text:'日数',color:'#94a8bc'},beginAtZero:true}}}});
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2149,7 +2149,7 @@ function renderMoonTimeline() {
   CH['c-moon-tl'] = new Chart(ctx, {type:'line', data:{labels,datasets}, options:{
     responsive:true, maintainAspectRatio:false,
     plugins:{
-      legend:{labels:{color:'#555',font:{size:10}}},
+      legend:{labels:{color:'#94a8bc',font:{size:10}}},
       springTide:{},
       tooltip:{callbacks:{
         afterLabel:ci=>{
@@ -2161,9 +2161,9 @@ function renderMoonTimeline() {
       }}
     },
     scales:{
-      x:{ticks:{color:'#555',font:{size:8},maxTicksLimit:20},grid:{color:'#d5dbdb'}},
-      y:{ticks:{color:'#555',font:{size:9}},grid:{color:'#d5dbdb'},
-         title:{display:true,text:'月齢',color:'#555'},min:0,max:30,
+      x:{ticks:{color:'#94a8bc',font:{size:8},maxTicksLimit:20},grid:{color:'#1e3550'}},
+      y:{ticks:{color:'#94a8bc',font:{size:9}},grid:{color:'#1e3550'},
+         title:{display:true,text:'月齢',color:'#94a8bc'},min:0,max:30,
          afterBuildTicks: axis => { axis.ticks = [0,7.4,14.8,22.1,29.5].map(v=>({value:v})); },
          ticks:{callback: v => ({0:'新月',7.4:'上弦',14.8:'満月',22.1:'下弦',29.5:'新月'})[v]||''}}
     }
@@ -2189,9 +2189,9 @@ function renderMoonTimeline() {
       {label:'大物(⭐)',   data:bands.map(b=>bigCatch.filter(r=>inBand(r['月齢'],b)).length),    backgroundColor:'rgba(255,215,0,.85)', borderWidth:1},
     ]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{labels:{color:'#555',font:{size:10}}}},
-      scales:{x:{ticks:{color:'#555',font:{size:10}},grid:{color:'#d5dbdb'}},
-              y:{ticks:{color:'#555',font:{size:9}},grid:{color:'#d5dbdb'},title:{display:true,text:'釣果日数',color:'#555'},beginAtZero:true}}}});
+      plugins:{legend:{labels:{color:'#94a8bc',font:{size:10}}}},
+      scales:{x:{ticks:{color:'#94a8bc',font:{size:10}},grid:{color:'#1e3550'}},
+              y:{ticks:{color:'#94a8bc',font:{size:9}},grid:{color:'#1e3550'},title:{display:true,text:'釣果日数',color:'#94a8bc'},beginAtZero:true}}}});
 }
 
 // ══════════════════════════════════════════════════════════
