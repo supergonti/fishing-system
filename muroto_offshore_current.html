@@ -649,9 +649,32 @@ function getArrowCanvas(deg, S) {
   return cv;
 }
 
+// 欠損日を null エントリで埋めて時間軸の不連続を可視化する。
+// 入力は昇順配列、返り値も昇順。欠損日は speed_kn/temp_c/salinity/direction=NaN のプレースホルダ。
+function fillDateGaps(ascRows) {
+  if (!ascRows || ascRows.length === 0) return ascRows || [];
+  const byDate = new Map(ascRows.map(r => [r.date, r]));
+  const parseYMD = s => { const [y,m,d] = s.split('-').map(Number); return Date.UTC(y, m-1, d); };
+  const fmtYMD = t => {
+    const d = new Date(t);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth()+1).padStart(2,'0');
+    const dd = String(d.getUTCDate()).padStart(2,'0');
+    return `${y}-${m}-${dd}`;
+  };
+  const start = parseYMD(ascRows[0].date);
+  const end   = parseYMD(ascRows[ascRows.length-1].date);
+  const out = [];
+  for (let t = start; t <= end; t += 86400000) {
+    const key = fmtYMD(t);
+    out.push(byDate.get(key) || { date:key, speed_kn:NaN, temp_c:NaN, salinity:NaN, direction:NaN });
+  }
+  return out;
+}
+
 // --------- 流速＋水温チャート ---------
 function renderSpeedChart() {
-  const rows   = getFiltered().slice().reverse();
+  const rows   = fillDateGaps(getFiltered().slice().reverse());
   const labels = rows.map(r => (r.date || '').slice(5).replace('-', '/'));
   const spd    = rows.map(r => isNaN(r.speed_kn) ? null : +r.speed_kn.toFixed(3));
   const tmp    = rows.map(r => isNaN(r.temp_c) ? null : r.temp_c);
@@ -673,13 +696,13 @@ function renderSpeedChart() {
           borderColor:'#1a3a6c', backgroundColor:'rgba(26,58,108,.07)',
           borderWidth:2, pointStyle:arrowPts, pointRadius:arrowR,
           pointHoverRadius:arrowR+2, hitRadius:arrowR+4,
-          tension:.3, fill:true, spanGaps:true
+          tension:.3, fill:true, spanGaps:false
         },
         {
           type:'line', label:'水温(℃)', data:tmp, yAxisID:'yTmp',
           borderColor:'#e74c3c', backgroundColor:'transparent',
           borderWidth:1.5, pointRadius:tmpR, pointHoverRadius:tmpR+2,
-          tension:.3, borderDash:[4,3], spanGaps:true
+          tension:.3, borderDash:[4,3], spanGaps:false
         }
       ]
     },
@@ -698,7 +721,7 @@ function renderSpeedChart() {
 
 // --------- 塩分チャート ---------
 function renderSalinityChart() {
-  const rows   = getFiltered().slice().reverse();
+  const rows   = fillDateGaps(getFiltered().slice().reverse());
   const labels = rows.map(r => (r.date || '').slice(5).replace('-', '/'));
   const sal    = rows.map(r => isNaN(r.salinity) ? null : r.salinity);
   const salR   = currentDays <= 30 ? 2 : 1;
@@ -712,7 +735,7 @@ function renderSalinityChart() {
       datasets: [{
         type:'line', label:'塩分(psu)', data:sal,
         borderColor:'#16a085', backgroundColor:'rgba(22,160,133,.08)',
-        borderWidth:1.8, pointRadius:salR, tension:.3, fill:true, spanGaps:true
+        borderWidth:1.8, pointRadius:salR, tension:.3, fill:true, spanGaps:false
       }]
     },
     options: {
