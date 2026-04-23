@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>室戸沖 釣果データ解析ソフト v2.1</title>
+<title>室戸沖 室戸1 釣果データ解析ソフト</title>
 <link rel="icon" type="image/svg+xml" href="./favicon.svg">
 <link rel="alternate icon" href="./favicon.ico">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -18,7 +18,9 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);font-family:'Yu Gothic UI','Meiryo UI','Hiragino Sans',sans-serif;color:var(--text);min-height:100vh;}
 /* ─── ヘッダー ─── */
-.app-header{background:linear-gradient(135deg,#0a1628,#152b45);padding:14px 24px;display:flex;align-items:center;gap:16px;border-bottom:2px solid var(--accent2);}
+.app-header{background:#1a3a6c;padding:14px 24px;display:flex;align-items:center;gap:16px;border-bottom:2px solid var(--accent2);color:#fff;}
+.app-header h1,.app-header .header-meta,.app-header .header-meta b{color:#fff;}
+.app-header p{color:rgba(255,255,255,.75);}
 .app-header .icon{font-size:2rem;}
 .app-header h1{font-size:1.3rem;color:var(--accent);}
 .app-header p{font-size:.75rem;color:var(--text3);margin-top:2px;}
@@ -182,25 +184,38 @@ window.ANALYSIS_DATA = {"version": "2.1", "generated_at": "2026-04-21 02:59", "d
 </script>
 </head>
 <body data-fs-page="muroto_analysis">
-<!-- fishing-system 共通ナビ v1 (W5-3) -->
+<!-- fishing-system 共通ナビ v2 (2グループ化) -->
 <nav class="fs-nav">
-  <a href="./collector.html"               data-fs="collector">釣果収集</a>
-  <a href="./condition.html"               data-fs="condition">条件分析</a>
-  <a href="./fishingdata.html"             data-fs="fishingdata">統合釣果DB</a>
-  <a href="./muroto_offshore_current.html" data-fs="muroto_current">潮流</a>
-  <a href="./muroto_fishing_analysis.html" data-fs="muroto_analysis">解析</a>
-  <a href="./muroto_fishingforecast.html"  data-fs="muroto_forecast">出船判断</a>
+  <div class="fs-nav-group fs-nav-group-private" data-group="private">
+    <span class="fs-nav-label">釣果収集系</span>
+    <a href="./collector.html"               data-fs="collector">釣果収集</a>
+    <a href="./condition.html"               data-fs="condition">条件分析</a>
+  </div>
+  <div class="fs-nav-group fs-nav-group-shared" data-group="shared">
+    <span class="fs-nav-label">公開系</span>
+    <a href="./fishingdata.html"             data-fs="fishingdata">統合釣果DB</a>
+    <a href="./muroto_offshore_current.html" data-fs="muroto_current">潮流</a>
+    <a href="./muroto_fishing_analysis.html" data-fs="muroto_analysis">解析</a>
+    <a href="./muroto_fishingforecast.html"  data-fs="muroto_forecast">出船判断</a>
+  </div>
 </nav>
 <style>
-.fs-nav{display:flex;flex-wrap:wrap;gap:.25rem;padding:.5rem;background:#0a3d62;border-bottom:2px solid #0ea5e9;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic UI",sans-serif;box-sizing:border-box}
+.fs-nav{display:flex;flex-wrap:wrap;gap:.5rem;padding:.5rem;background:#0a3d62;border-bottom:2px solid #0ea5e9;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic UI",sans-serif;box-sizing:border-box}
+.fs-nav-group{display:flex;align-items:center;flex-wrap:wrap;gap:.25rem;padding:.2rem .5rem;background:rgba(255,255,255,.04);border-radius:6px}
+.fs-nav-label{font-size:.68rem;color:#9fb3d1;letter-spacing:1.5px;margin-right:.35rem;text-transform:uppercase}
+.fs-nav-group-private{display:none}
+html.fs-reveal-private .fs-nav-group-private{display:flex}
 .fs-nav a{color:#eef;text-decoration:none;padding:.35rem .7rem;border-radius:4px;font-size:.9rem;font-weight:500;line-height:1.2}
 .fs-nav a:hover{background:#114477}
 .fs-nav a.fs-active{background:#0ea5e9;color:#023;pointer-events:none}
 </style>
 <script>
-(function(){var cur=document.body.getAttribute('data-fs-page');
- if(!cur)return;var a=document.querySelector('.fs-nav a[data-fs="'+cur+'"]');
- if(a)a.classList.add('fs-active');})();
+(function(){
+  try{if(localStorage.getItem('fs-reveal-private')==='1')document.documentElement.classList.add('fs-reveal-private');}catch(e){}
+  var cur=document.body.getAttribute('data-fs-page');
+  if(!cur)return;var a=document.querySelector('.fs-nav a[data-fs="'+cur+'"]');
+  if(a)a.classList.add('fs-active');
+})();
 </script>
 
 <div id="loading-overlay">
@@ -212,7 +227,7 @@ window.ANALYSIS_DATA = {"version": "2.1", "generated_at": "2026-04-21 02:59", "d
 <div class="app-header">
   <span class="icon">🌊</span>
   <div>
-    <h1>室戸沖 釣果データ解析ソフト v2.1 <span class="dev-badge">改良版</span><button class="promote-btn" onclick="showPromoteModal()">更新</button></h1>
+    <h1>室戸沖 室戸1 釣果データ解析ソフト</h1>
     <p>3DB統合解析（釣果DB × 5地点海流DB × 気象潮汐DB）</p>
   </div>
   <div class="header-meta">
@@ -618,7 +633,7 @@ window.ANALYSIS_DATA = {"version": "2.1", "generated_at": "2026-04-21 02:59", "d
   </div>
 </div>
 
-<div class="footer">室戸沖 釣果データ解析ソフト v2.1 ／ DB①釣果 × DB②CMEMS海流(5地点) × DB③Open-Meteo気象潮汐</div>
+<div class="footer">室戸沖 室戸1 釣果データ解析ソフト ／ DB①釣果 × DB②CMEMS海流(5地点) × DB③Open-Meteo気象潮汐</div>
 
 <!-- ─── 昇格確認モーダル ─── -->
 <div class="promote-overlay" id="promote-overlay">

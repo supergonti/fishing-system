@@ -96,25 +96,38 @@ td{padding:7px 8px;color:#1a1a2e;vertical-align:middle}
 </style>
 </head>
 <body data-fs-page="muroto_forecast">
-<!-- fishing-system 共通ナビ v1 (W5-3) -->
+<!-- fishing-system 共通ナビ v2 (2グループ化) -->
 <nav class="fs-nav">
-  <a href="./collector.html"               data-fs="collector">釣果収集</a>
-  <a href="./condition.html"               data-fs="condition">条件分析</a>
-  <a href="./fishingdata.html"             data-fs="fishingdata">統合釣果DB</a>
-  <a href="./muroto_offshore_current.html" data-fs="muroto_current">潮流</a>
-  <a href="./muroto_fishing_analysis.html" data-fs="muroto_analysis">解析</a>
-  <a href="./muroto_fishingforecast.html"  data-fs="muroto_forecast">出船判断</a>
+  <div class="fs-nav-group fs-nav-group-private" data-group="private">
+    <span class="fs-nav-label">釣果収集系</span>
+    <a href="./collector.html"               data-fs="collector">釣果収集</a>
+    <a href="./condition.html"               data-fs="condition">条件分析</a>
+  </div>
+  <div class="fs-nav-group fs-nav-group-shared" data-group="shared">
+    <span class="fs-nav-label">公開系</span>
+    <a href="./fishingdata.html"             data-fs="fishingdata">統合釣果DB</a>
+    <a href="./muroto_offshore_current.html" data-fs="muroto_current">潮流</a>
+    <a href="./muroto_fishing_analysis.html" data-fs="muroto_analysis">解析</a>
+    <a href="./muroto_fishingforecast.html"  data-fs="muroto_forecast">出船判断</a>
+  </div>
 </nav>
 <style>
-.fs-nav{display:flex;flex-wrap:wrap;gap:.25rem;padding:.5rem;background:#0a3d62;border-bottom:2px solid #0ea5e9;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic UI",sans-serif;box-sizing:border-box}
+.fs-nav{display:flex;flex-wrap:wrap;gap:.5rem;padding:.5rem;background:#0a3d62;border-bottom:2px solid #0ea5e9;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic UI",sans-serif;box-sizing:border-box}
+.fs-nav-group{display:flex;align-items:center;flex-wrap:wrap;gap:.25rem;padding:.2rem .5rem;background:rgba(255,255,255,.04);border-radius:6px}
+.fs-nav-label{font-size:.68rem;color:#9fb3d1;letter-spacing:1.5px;margin-right:.35rem;text-transform:uppercase}
+.fs-nav-group-private{display:none}
+html.fs-reveal-private .fs-nav-group-private{display:flex}
 .fs-nav a{color:#eef;text-decoration:none;padding:.35rem .7rem;border-radius:4px;font-size:.9rem;font-weight:500;line-height:1.2}
 .fs-nav a:hover{background:#114477}
 .fs-nav a.fs-active{background:#0ea5e9;color:#023;pointer-events:none}
 </style>
 <script>
-(function(){var cur=document.body.getAttribute('data-fs-page');
- if(!cur)return;var a=document.querySelector('.fs-nav a[data-fs="'+cur+'"]');
- if(a)a.classList.add('fs-active');})();
+(function(){
+  try{if(localStorage.getItem('fs-reveal-private')==='1')document.documentElement.classList.add('fs-reveal-private');}catch(e){}
+  var cur=document.body.getAttribute('data-fs-page');
+  if(!cur)return;var a=document.querySelector('.fs-nav a[data-fs="'+cur+'"]');
+  if(a)a.classList.add('fs-active');
+})();
 </script>
 
 <header class="hd">
@@ -124,7 +137,6 @@ td{padding:7px 8px;color:#1a1a2e;vertical-align:middle}
     <div class="hd-sub">MUROTO OFFSHORE — 5日間予報 / 0・6・12・18時</div>
   </div>
   <div class="hd-badge">
-    <span class="hd-ver">v4</span>
     <span class="hd-coord">LAT 33.2 / LON 134.2</span>
   </div>
 </header>

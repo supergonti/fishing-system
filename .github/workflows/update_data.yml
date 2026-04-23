@@ -51,13 +51,14 @@ jobs:
           COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.CMEMS_USERNAME }}
           COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.CMEMS_PASSWORD }}
         run: |
+          set -o pipefail
           if [ "${{ github.event.inputs.collect_all }}" = "true" ]; then
             echo "⚠️ 全データ再収集モード（2022-01-01 〜 今日）"
-            python scripts/main.py --all --no-skip
+            python scripts/main.py --all --no-skip 2>&1 | tee /tmp/fetch.log
           elif [ -n "${{ github.event.inputs.target_date }}" ]; then
             TARGET="${{ github.event.inputs.target_date }}"
             echo "取得日付: $TARGET"
-            python scripts/main.py --date "$TARGET"
+            python scripts/main.py --date "$TARGET" 2>&1 | tee /tmp/fetch.log
           else
             # W6-3-fix（2026-04-20）: TZ=Asia/Tokyo で JST 基準の「前日」を計算。
             # 旧実装は UTC 基準で `date -d "yesterday"` を評価していたため、
@@ -67,7 +68,18 @@ jobs:
             # 差分ゼロ → sync_after_current_update が発火しない副作用）。
             TARGET=$(TZ=Asia/Tokyo date -d "yesterday" +%Y-%m-%d)
             echo "取得日付: $TARGET（前日 / JST 基準）"
-            python scripts/main.py --date "$TARGET"
+            python scripts/main.py --date "$TARGET" 2>&1 | tee /tmp/fetch.log
+          fi
+
+          # W6-4（2026-04-23）: CMEMS認証失敗時に workflow が success のまま
+          # 通り抜ける silent failure を防ぐ。取得成功 0 かつ失敗 > 0 ならジョブを失敗させる。
+          if grep -q "I forgot my username or my password" /tmp/fetch.log; then
+            echo "::error title=CMEMS認証失敗::CMEMS_USERNAME / CMEMS_PASSWORD が無効です。GitHub Secrets を再設定してください。"
+            exit 1
+          fi
+          if grep -qE "取得成功:\s*0 日" /tmp/fetch.log && grep -qE "失敗:\s*[1-9]" /tmp/fetch.log; then
+            echo "::error title=データ取得失敗::全日取得に失敗しました。上のログを確認してください。"
+            exit 1
           fi
 
       # ⑥ ダッシュボード用JSファイルを再生成
