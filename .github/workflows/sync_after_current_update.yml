@@ -23,6 +23,16 @@ name: 海流データ更新後 v2.1 自動同期 / Sync v2.1 after current updat
 #   - scripts/analyze_engine.py
 
 on:
+  # W6-4（2026-04-24）: update_data.yml の push 起点では GITHUB_TOKEN 由来の
+  # commit が他 workflow をトリガーしない GitHub Actions の仕様により連鎖が
+  # 断ち切られていた（2026-04-24 9:05 の scheduled 実行で露見）。
+  # workflow_run 起点に切り替えて upstream 成功後に確実に連鎖させる。
+  workflow_run:
+    workflows: ["室戸沖データ自動更新 / Update Muroto Ocean Current Data"]
+    types: [completed]
+    branches: [main]
+  # 人が直接 CSV/JS を push した場合のバックアップ（GITHUB_TOKEN 以外の push は
+  # 通常通りトリガーされる）。
   push:
     paths:
       - 'data/muroto_offshore_current_all.csv'
@@ -44,6 +54,9 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+    # workflow_run イベントは upstream 失敗時もトリガーされるため、成功時のみ継続。
+    # 他のトリガー（push/workflow_dispatch）は常に実行する。
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: リポジトリをチェックアウト
