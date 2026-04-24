@@ -1348,9 +1348,9 @@ function renderTideTimeline() {
 
   const datasets = [
     {label:'満潮ライン', data:tideHigh, borderColor:'#00b4d8', backgroundColor:'rgba(0,180,216,.12)',
-      tension:0.4, fill:'+1', pointRadius:0, borderWidth:1.5},
+      tension:0.4, fill:'+1', pointRadius:isoPointRadius, borderWidth:1.5},
     {label:'干潮ライン', data:tideLow, borderColor:'#457b9d', backgroundColor:'rgba(69,123,157,.08)',
-      tension:0.4, fill:false, pointRadius:0, borderWidth:1, borderDash:[3,3]},
+      tension:0.4, fill:false, pointRadius:isoPointRadius, borderWidth:1, borderDash:[3,3]},
     ...buildCatchDatasets(fil, spF, '月齢').map(ds => ({...ds, data: fil.map((r,i) => {
       return ds.data[i] != null ? tideHigh[i] : null;
     })})),
@@ -1612,6 +1612,18 @@ function updateConditionBars() {
 //  チャートヘルパー
 // ══════════════════════════════════════════════════════════
 function kc(id) { if(CH[id]){CH[id].destroy();delete CH[id];} }
+
+// 孤立した非 null 値 (前後が null) だけドット表示する pointRadius ヘルパ。
+// 連続線で描画できない 1 日だけ存在するデータ（CMEMS欠損日に挟まれた日など）が
+// pointRadius:0 によって画面上で完全に見えなくなる問題への対策。
+function isoPointRadius(ctx) {
+  const i = ctx.dataIndex;
+  const data = ctx.dataset.data;
+  if (data[i] == null) return 0;
+  const prev = i > 0 ? data[i-1] : null;
+  const next = i < data.length - 1 ? data[i+1] : null;
+  return (prev == null && next == null) ? 3 : 0;
+}
 
 function barChart(id,labels,datasets,opts={}) {
   kc(id); const ctx=document.getElementById(id); if(!ctx) return;
@@ -1996,11 +2008,11 @@ function renderTimeline() {
   const speeds = fil.map(r=>r['流速kn']);
 
   const datasets=[
-    {label:'水温℃',data:temps,borderColor:'#00b4d8',backgroundColor:'rgba(0,180,216,.1)',tension:0.3,fill:true,pointRadius:0,borderWidth:1.5},
+    {label:'水温℃',data:temps,borderColor:'#00b4d8',backgroundColor:'rgba(0,180,216,.1)',tension:0.3,fill:true,pointRadius:isoPointRadius,borderWidth:1.5},
     {label:'7日MA',data:ma7s,borderColor:'#f4a261',borderDash:[4,3],tension:0.3,fill:false,pointRadius:0,borderWidth:1.5},
     ...buildCatchDatasets(fil, spF, '水温'),
   ];
-  if(showCs) datasets.push({label:'流速kn',data:speeds,borderColor:'#7b2d8b',borderDash:[2,2],tension:0.3,fill:false,pointRadius:0,borderWidth:1,yAxisID:'y2'});
+  if(showCs) datasets.push({label:'流速kn',data:speeds,borderColor:'#7b2d8b',borderDash:[2,2],tension:0.3,fill:false,pointRadius:isoPointRadius,borderWidth:1,yAxisID:'y2'});
 
   kc('c-timeline');
   const ctx=document.getElementById('c-timeline'); if(!ctx) return;
@@ -2057,7 +2069,7 @@ function renderCurrentTimeline() {
   });
 
   const datasets = [
-    {label:'流速kn', data:speeds, borderColor:'#00b4d8', backgroundColor:'rgba(0,180,216,.1)', tension:0.3, fill:true, pointRadius:0, borderWidth:1.5},
+    {label:'流速kn', data:speeds, borderColor:'#00b4d8', backgroundColor:'rgba(0,180,216,.1)', tension:0.3, fill:true, pointRadius:isoPointRadius, borderWidth:1.5},
     {label:'7日MA',  data:ma7s,  borderColor:'#2ec4b6', borderDash:[4,3], tension:0.3, fill:false, pointRadius:0, borderWidth:1.5},
     {label:'流向矢印', data:arrowData, type:'scatter',
       pointStyle:arrowImgs, pointRadius:11,
@@ -2140,7 +2152,7 @@ function renderMoonTimeline() {
 
   const datasets = [
     {label:'月齢(0〜29.5)', data:moons, borderColor:'#e9c46a', backgroundColor:'rgba(233,196,106,.08)',
-      tension:0.3, fill:true, pointRadius:0, borderWidth:1.5},
+      tension:0.3, fill:true, pointRadius:isoPointRadius, borderWidth:1.5},
     ...buildCatchDatasets(fil, spF, '月齢'),
   ];
 
